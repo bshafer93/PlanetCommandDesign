@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "svelte-check && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "npm run build && echo.> dist/.nojekyll && gh-pages -d dist --dotfiles"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
