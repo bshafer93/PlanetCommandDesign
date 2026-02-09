@@ -1,0 +1,55 @@
+:root {
+  --bg: #0e1117;
+  --surface: #161b22;
+  --surface2: #1c2231;
+  --border: #2a3142;
+  --text: #e2e8f0;
+  --text-dim: #8492a6;
+  --accent: #60a5fa;
+  --accent-glow: rgba(96, 165, 250, 0.15);
+  --red: #f87171;
+  --green: #4ade80;
+  --yellow: #fbbf24;
+  --purple: #c084fc;
+  --orange: #fb923c;
+  --pink: #f472b6;
+  --cyan: #22d3ee;
+  --teal: #2dd4bf;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+#app {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+header {
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.5px;
+}
+
+header p {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 700px) {
+  body { padding: 1rem; }
+}
