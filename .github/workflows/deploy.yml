@@ -25,8 +25,42 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy via rsync
+      - name: Deploy frontend via rsync
         run: |
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
             dist/ root@${{ secrets.DEPLOY_HOST }}:/var/www/planet-command/
+
+      - name: Deploy server via rsync
+        run: |
+          rsync -avz --delete \
+            --exclude='data/' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            server/ root@${{ secrets.DEPLOY_HOST }}:/opt/planet-command-server/server/
+
+      - name: Install server dependencies and restart
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            # Copy package files for server dependency install
+            cd /opt/planet-command-server
+            # Create a minimal package.json for production deps
+            cat > package.json << 'PKG'
+          {
+            "name": "planet-command-server",
+            "type": "module",
+            "dependencies": {
+              "cors": "^2.8.5",
+              "express": "^4.21.0"
+            },
+            "devDependencies": {
+              "tsx": "^4.19.0"
+            }
+          }
+          PKG
+            npm install --production=false
+            # Restart via PM2 (install if needed)
+            which pm2 || npm install -g pm2
+            pm2 delete planet-command-api 2>/dev/null || true
+            pm2 start npx --name planet-command-api -- tsx server/index.ts
+            pm2 save
+          EOF
