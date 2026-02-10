@@ -1,0 +1,49 @@
+{
+  "title": "Raw Resource Requirements by Spacecraft Class",
+  "description": "Mined/harvested inputs including processing losses, at two reference scales",
+  "scalingRule": "All quantities scale linearly with spacecraft dry mass: scaled = baseline × (newDryMass / 30000)",
+  "classes": [
+    {
+      "name": "Baseline orbital-class",
+      "referenceDryMass_kg": 30000,
+      "totalMinedInputs_kg": 77000,
+      "rawToFinishedRatio": 2.5,
+      "bulkOres": [
+        { "name": "Iron ore", "mass_kg": 28000 },
+        { "name": "Bauxite", "mass_kg": 16000 },
+        { "name": "Nickel ore", "mass_kg": 6800 },
+        { "name": "Chromium ore", "mass_kg": 4200 },
+        { "name": "Titanium ore", "mass_kg": 3200 },
+        { "name": "Copper ore", "mass_kg": 4000 }
+      ],
+      "industrialInputs": [
+        { "name": "Carbon feedstock", "mass_kg": 4500 },
+        { "name": "Crude oil / natural gas", "mass_kg": 3800 },
+        { "name": "Silica (sand/quartz)", "mass_kg": 2700 },
+        { "name": "Ceramic minerals", "mass_kg": 2200 },
+        { "name": "Rare minerals (electronics)", "mass_kg": 1200 },
+        { "name": "Lithium minerals", "mass_kg": 350 }
+      ]
+    },
+    {
+      "name": "Carrier-scale (starship-esque)",
+      "referenceDryMass_kg": 100000000,
+      "totalMinedInputs_kg": 193000000,
+      "rawToFinishedRatio": 1.93,
+      "bulkOres": [
+        { "name": "Iron ore", "mass_kg": 87000000 },
+        { "name": "Chromium ore", "mass_kg": 42000000 },
+        { "name": "Nickel ore", "mass_kg": 31000000 },
+        { "name": "Copper ore", "mass_kg": 8900000 },
+        { "name": "Titanium ore", "mass_kg": 4200000 }
+      ],
+      "industrialInputs": [
+        { "name": "Crude oil / gas feedstock", "mass_kg": 9500000 },
+        { "name": "Ceramic minerals", "mass_kg": 5900000 },
+        { "name": "Silica", "mass_kg": 2300000 },
+        { "name": "Rare minerals (electronics)", "mass_kg": 1000000 },
+        { "name": "Carbon feedstock", "mass_kg": 1000000 }
+      ]
+    }
+  ]
+}

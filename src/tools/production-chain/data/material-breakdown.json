@@ -1,0 +1,39 @@
+{
+  "title": "Fabricated Material Breakdown by Spacecraft Class",
+  "description": "Mass of each fabricated material required for spacecraft construction at two reference scales",
+  "classes": [
+    {
+      "name": "Baseline orbital-class",
+      "dryMass_kg": 30000,
+      "propellant": "excluded",
+      "structuralStyle": "generic orbital-class",
+      "materials": [
+        { "name": "Primary structural metal (steel or Al-Li)", "mass_kg": 16500 },
+        { "name": "Nickel superalloys", "mass_kg": 3600 },
+        { "name": "Secondary steel", "mass_kg": 1800 },
+        { "name": "Titanium alloys", "mass_kg": 1500 },
+        { "name": "Carbon composites", "mass_kg": 1800 },
+        { "name": "Copper", "mass_kg": 900 },
+        { "name": "Polymers", "mass_kg": 1200 },
+        { "name": "Ceramics / insulation / TPS", "mass_kg": 1500 },
+        { "name": "Electronics / avionics", "mass_kg": 1200 }
+      ]
+    },
+    {
+      "name": "Carrier-scale (starship-esque)",
+      "dryMass_kg": 100000000,
+      "propellant": "excluded",
+      "structuralStyle": "stainless steel dominant",
+      "analogy": "Largest U.S. naval carrier (mass scale only)",
+      "materials": [
+        { "name": "Stainless steel structure/tanks", "mass_kg": 78000000 },
+        { "name": "Nickel superalloys", "mass_kg": 10000000 },
+        { "name": "Ceramics / TPS / insulation", "mass_kg": 4000000 },
+        { "name": "Polymers", "mass_kg": 3000000 },
+        { "name": "Copper", "mass_kg": 2000000 },
+        { "name": "Titanium alloys", "mass_kg": 2000000 },
+        { "name": "Electronics / avionics", "mass_kg": 1000000 }
+      ]
+    }
+  ]
+}

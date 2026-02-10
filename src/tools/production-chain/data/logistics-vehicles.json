@@ -1,0 +1,237 @@
+{
+  "title": "Logistics Vehicles — Capacity, Speed & Cost",
+  "description": "Transport modes compared by payload, transit time, and cost per tonne-km. Rockets appear in both LEO (400 km orbital insertion) and Earth point-to-point (10,000 km suborbital hop) scenarios for order-of-magnitude comparison.",
+  "costUnit": "$/t-km",
+  "categories": [
+    {
+      "category": "Last-Mile / Urban",
+      "vehicles": [
+        {
+          "type": "Cargo Bike",
+          "example": "E-cargo bike",
+          "maxPayload_t": 0.15,
+          "time_1000km": "2–3 days",
+          "costMin": 0.90,
+          "costMax": 1.80
+        },
+        {
+          "type": "Small Van",
+          "example": "Transit Connect",
+          "maxPayload_t": 0.9,
+          "time_1000km": "1–2 days",
+          "costMin": 0.37,
+          "costMax": 0.75
+        },
+        {
+          "type": "Large Van",
+          "example": "Sprinter",
+          "maxPayload_t": 1.6,
+          "time_1000km": "1–2 days",
+          "costMin": 0.25,
+          "costMax": 0.50
+        }
+      ]
+    },
+    {
+      "category": "Medium Trucks",
+      "vehicles": [
+        {
+          "type": "Box Truck (14 ft)",
+          "example": "Isuzu NPR",
+          "maxPayload_t": 3.6,
+          "time_1000km": "1 day",
+          "costMin": 0.19,
+          "costMax": 0.37
+        },
+        {
+          "type": "Box Truck (26 ft)",
+          "example": "Freightliner M2",
+          "maxPayload_t": 12.7,
+          "time_1000km": "1 day",
+          "costMin": 0.12,
+          "costMax": 0.25
+        }
+      ]
+    },
+    {
+      "category": "Heavy Road Freight",
+      "vehicles": [
+        {
+          "type": "Flatbed Truck",
+          "example": "Multi-axle",
+          "maxPayload_t": 20,
+          "time_1000km": "1 day",
+          "costMin": 0.09,
+          "costMax": 0.19
+        },
+        {
+          "type": "Semi-Truck",
+          "example": "18-wheeler",
+          "maxPayload_t": 36,
+          "time_1000km": "1 day",
+          "costMin": 0.06,
+          "costMax": 0.16
+        },
+        {
+          "type": "Heavy Haul Truck",
+          "example": "Lowboy",
+          "maxPayload_t": 115,
+          "maxPayloadRange": "80–150",
+          "time_1000km": "2–4 days",
+          "costMin": 0.19,
+          "costMax": 0.62
+        }
+      ]
+    },
+    {
+      "category": "Rail Freight",
+      "vehicles": [
+        {
+          "type": "Single Railcar",
+          "example": "Boxcar / hopper",
+          "maxPayload_t": 100,
+          "time_1000km": "2–3 days",
+          "costMin": 0.02,
+          "costMax": 0.04
+        },
+        {
+          "type": "Unit Train",
+          "example": "100+ cars",
+          "maxPayload_t": 10000,
+          "time_1000km": "3–5 days",
+          "costMin": 0.01,
+          "costMax": 0.02
+        }
+      ]
+    },
+    {
+      "category": "Inland Waterways",
+      "vehicles": [
+        {
+          "type": "River Barge",
+          "example": "Mississippi barge",
+          "maxPayload_t": 1500,
+          "time_1000km": "4–6 days",
+          "costMin": 0.006,
+          "costMax": 0.012
+        },
+        {
+          "type": "Tug + Barge Tow",
+          "example": "15 barges",
+          "maxPayload_t": 22500,
+          "time_1000km": "5–7 days",
+          "costMin": 0.003,
+          "costMax": 0.009
+        }
+      ]
+    },
+    {
+      "category": "Ocean Shipping",
+      "vehicles": [
+        {
+          "type": "Feeder Ship",
+          "example": "Coastal container",
+          "maxPayload_t": 5000,
+          "time_1000km": "3–5 days",
+          "costMin": 0.003,
+          "costMax": 0.012
+        },
+        {
+          "type": "Panamax Ship",
+          "example": "Canal-size",
+          "maxPayload_t": 65000,
+          "time_1000km": "3–5 days",
+          "costMin": 0.001,
+          "costMax": 0.006
+        },
+        {
+          "type": "Ultra-Large Container Ship",
+          "example": "24k+ TEU",
+          "maxPayload_t": 200000,
+          "time_1000km": "3–5 days",
+          "costMin": 0.0006,
+          "costMax": 0.003
+        }
+      ]
+    },
+    {
+      "category": "Air Cargo",
+      "vehicles": [
+        {
+          "type": "Turboprop Freighter",
+          "example": "ATR 72F",
+          "maxPayload_t": 8,
+          "time_1000km": "3–5 hrs",
+          "costMin": 0.60,
+          "costMax": 1.25
+        },
+        {
+          "type": "Narrowbody Jet",
+          "example": "737-800F",
+          "maxPayload_t": 23,
+          "time_1000km": "2–3 hrs",
+          "costMin": 0.50,
+          "costMax": 0.95
+        },
+        {
+          "type": "Widebody Freighter",
+          "example": "777F",
+          "maxPayload_t": 102,
+          "time_1000km": "2 hrs",
+          "costMin": 0.30,
+          "costMax": 0.65
+        }
+      ]
+    },
+    {
+      "category": "Rocket (LEO)",
+      "note": "Effective $/t-km assumes ~400 km orbital altitude. Rockets are not distance-efficient; included for order-of-magnitude comparison.",
+      "vehicles": [
+        {
+          "type": "Falcon 9",
+          "example": "LEO insertion",
+          "maxPayload_t": 22.8,
+          "time_1000km": "8–10 min",
+          "costMin": 7500,
+          "costMax": 7500
+        },
+        {
+          "type": "Starship + Super Heavy",
+          "example": "LEO insertion",
+          "maxPayload_t": 150,
+          "time_1000km": "8–10 min",
+          "costMin": 800,
+          "costMax": 3300
+        }
+      ]
+    },
+    {
+      "category": "Rocket (Earth P2P)",
+      "note": "Suborbital hop assuming 10,000 km distance",
+      "vehicles": [
+        {
+          "type": "Falcon 9",
+          "example": "Suborbital hop",
+          "maxPayload_t": 22.8,
+          "time_1000km": "45–60 min",
+          "costMin": 300,
+          "costMax": 300
+        },
+        {
+          "type": "Starship + Super Heavy",
+          "example": "Suborbital hop",
+          "maxPayload_t": 150,
+          "time_1000km": "45–60 min",
+          "costMin": 30,
+          "costMax": 130
+        }
+      ]
+    }
+  ],
+  "designNotes": {
+    "rocketVsShip_speedMultiplier": "10,000–1,000,000x faster",
+    "rocketVsShip_costMultiplier": "100–10,000x more expensive per t-km",
+    "starshipBreakeven": "At $10–20M per flight, Starship becomes absurdly fast, still premium, but no longer insane for ultra-critical cargo",
+    "starshipVsAirFreight": "Only Starship-class economics begin to touch air freight territory for Earth point-to-point"
+  }
+}

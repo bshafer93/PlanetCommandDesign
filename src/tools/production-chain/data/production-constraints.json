@@ -1,0 +1,34 @@
+{
+  "title": "Production Constraints & Scaling Rules",
+  "description": "U.S. annual resource figures, carrier-scale bottlenecks, time scaling, and key ratios",
+  "usAnnualProduction": {
+    "ironOre": {
+      "production_tons_year": 48000000,
+      "note": "Abundant relative to spacecraft needs",
+      "shipsPerYear_30kKg": 1700000
+    },
+    "nickel": {
+      "totalConsumption_tons_year": 180000,
+      "note": "Includes recycling"
+    },
+    "chromium": {
+      "domesticMining_tons_year": 0,
+      "apparentConsumption_tons_year": 440000,
+      "note": "No domestic mining; all imported or recycled"
+    }
+  },
+  "carrierScaleBottlenecks": {
+    "nickelLimited_carriersPerYear": 5,
+    "chromiumLimited": "comparable secondary constraint",
+    "ironLimited": "not limiting"
+  },
+  "timeScaling": {
+    "fastTimeFactor": 50,
+    "example": "60 seconds fast-time = 1.2 seconds real-time; 60 real seconds = 3000 fast-time seconds"
+  },
+  "keyRatios": {
+    "rawToFinished_smallShip": 2.5,
+    "rawToFinished_carrierScale": 1.93,
+    "scalingModel": "linear"
+  }
+}
