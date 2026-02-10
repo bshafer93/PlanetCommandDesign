@@ -92,8 +92,21 @@
 
   let laserAperture = $state(30);     // cm
   let laserWavelength = $state(1064); // nm
-  let laserPower = $state(1);         // MW
+  let laserPower = $state(1);         // MW  (stored in MW; 100 GW = 100000)
   let laserRange = $state(100);       // km
+
+  // ── Log-scale power slider (0.1 MW → 100 GW) ────────
+  function powerToSlider(mw: number): number {
+    // log10(0.1)=-1, log10(100000)=5 → 6 decades mapped to 0–1000
+    return ((Math.log10(Math.max(mw, 0.1)) + 1) / 6) * 1000;
+  }
+  function sliderToPower(pos: number): number {
+    return +Math.pow(10, -1 + pos / 1000 * 6).toPrecision(3);
+  }
+  function formatPowerCompact(mw: number): string {
+    if (mw >= 1000) return (mw / 1000).toPrecision(3) + ' GW';
+    return (+mw.toPrecision(3)) + ' MW';
+  }
 
   // ── Absorption model for steel vs wavelength ─────────
   function getAbsorption(nm: number): number {
@@ -169,8 +182,49 @@
     return wm2.toFixed(0) + ' W/m²';
   }
 
-  // ── Chart ──────────────────────────────────────────
+  // ── Color gradient for heatmap ─────────────────────
+  // red → green → blue → purple mapped on log depth scale
+  function lerp3(a: [number,number,number], b: [number,number,number], t: number): [number,number,number] {
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * t),
+      Math.round(a[1] + (b[1] - a[1]) * t),
+      Math.round(a[2] + (b[2] - a[2]) * t),
+    ];
+  }
+
+  function penToColor(depth_m: number): [number,number,number] {
+    const mm = depth_m * 1000;
+    const red:    [number,number,number] = [252, 129, 129];
+    const green:  [number,number,number] = [104, 211, 145];
+    const blue:   [number,number,number] = [ 99, 179, 237];
+    const purple: [number,number,number] = [183, 148, 244];
+
+    if (mm < 0.01) return red; // negligible
+
+    // Log-scale mapping: 0.01mm → 0, 300mm → 1
+    const logMin = -2, logMax = Math.log10(300);
+    const t = Math.max(0, Math.min(1, (Math.log10(mm) - logMin) / (logMax - logMin)));
+
+    const tGreen = (0 - logMin) / (logMax - logMin);                    // ~0.45 (1mm)
+    const tBlue  = (Math.log10(50) - logMin) / (logMax - logMin);       // ~0.83 (50mm)
+
+    if (t <= tGreen) return lerp3(red, green, t / tGreen);
+    if (t <= tBlue)  return lerp3(green, blue, (t - tGreen) / (tBlue - tGreen));
+    return lerp3(blue, purple, (t - tBlue) / (1 - tBlue));
+  }
+
+  // Penetration for arbitrary power/range (independent of slider state)
+  function calcPenStandalone(powerMW: number, rangeKm: number, apertCm: number, wavNm: number): number {
+    const abs = getAbsorption(wavNm);
+    const spotD = 2.44 * (wavNm * 1e-9) * (rangeKm * 1000) / (apertCm / 100);
+    const spotA = Math.PI * (spotD / 2) ** 2;
+    const apd = abs * (powerMW * 1e6) / spotA;
+    return apd / steelEnergyPerVolume; // 1-second impulse
+  }
+
+  // ── Charts ─────────────────────────────────────────
   let laserCanvas = $state<HTMLCanvasElement>();
+  let heatmapCanvas = $state<HTMLCanvasElement>();
 
   $effect(() => {
     if (!laserCanvas || activeSubTab !== 'laser') return;
@@ -259,6 +313,171 @@
       },
     });
     return () => chart.destroy();
+  });
+
+  // ── Range vs Power Heatmap ───────────────────────────
+  $effect(() => {
+    if (!heatmapCanvas || activeSubTab !== 'laser') return;
+    const ctx = heatmapCanvas.getContext('2d')!;
+
+    const W = 620, H = 420;
+    heatmapCanvas.width = W;
+    heatmapCanvas.height = H;
+
+    const M = { top: 32, right: 85, bottom: 48, left: 68 };
+    const pX = M.left, pY = M.top;
+    const pW = W - M.left - M.right;
+    const pH = H - M.top - M.bottom;
+
+    const apert = laserAperture;
+    const wav = laserWavelength;
+    const curRange = laserRange;
+    const curPower = laserPower;
+
+    const logRMin = 0, logRMax = 3;   // log10(1 km) → log10(1000 km)
+    const logPMin = -1, logPMax = 5;  // log10(0.1 MW) → log10(100 GW)
+
+    // Background
+    ctx.fillStyle = LC.surface;
+    ctx.fillRect(0, 0, W, H);
+
+    // Compute heatmap at low res, scale up
+    const gridW = 150, gridH = 100;
+    const tmp = document.createElement('canvas');
+    tmp.width = gridW;
+    tmp.height = gridH;
+    const tmpCtx = tmp.getContext('2d')!;
+    const imgData = tmpCtx.createImageData(gridW, gridH);
+    const px = imgData.data;
+
+    for (let row = 0; row < gridH; row++) {
+      const tY = row / (gridH - 1);
+      const pMW = Math.pow(10, logPMax - tY * (logPMax - logPMin));
+      for (let col = 0; col < gridW; col++) {
+        const tX = col / (gridW - 1);
+        const rKm = Math.pow(10, logRMin + tX * (logRMax - logRMin));
+        const pen = calcPenStandalone(pMW, rKm, apert, wav);
+        const [r, g, b] = penToColor(pen);
+        const idx = (row * gridW + col) * 4;
+        px[idx] = r; px[idx+1] = g; px[idx+2] = b; px[idx+3] = 255;
+      }
+    }
+    tmpCtx.putImageData(imgData, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(tmp, pX, pY, pW, pH);
+
+    // ── Crosshairs ────────────────────────────────────
+    const xCH = pX + ((Math.log10(Math.max(curRange, 1)) - logRMin) / (logRMax - logRMin)) * pW;
+    const yCH = pY + (1 - (Math.log10(Math.max(curPower, 0.1)) - logPMin) / (logPMax - logPMin)) * pH;
+
+    ctx.strokeStyle = '#ffffffaa';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(xCH, pY); ctx.lineTo(xCH, pY + pH);
+    ctx.moveTo(pX, yCH); ctx.lineTo(pX + pW, yCH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(xCH, yCH, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label at crosshair
+    const curPen = calcPenStandalone(curPower, curRange, apert, wav);
+    const penLabel = formatDepth(curPen);
+    ctx.font = 'bold 11px JetBrains Mono, monospace';
+    const onRight = xCH < pX + pW / 2;
+    ctx.textAlign = onRight ? 'left' : 'right';
+    ctx.textBaseline = 'bottom';
+    const lx = xCH + (onRight ? 10 : -10);
+    const tm = ctx.measureText(penLabel);
+    const boxX = onRight ? lx - 3 : lx - tm.width - 3;
+    ctx.fillStyle = '#000000cc';
+    ctx.fillRect(boxX, yCH - 24, tm.width + 6, 17);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(penLabel, lx, yCH - 9);
+
+    // ── Axes ──────────────────────────────────────────
+    ctx.strokeStyle = LC.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pX, pY); ctx.lineTo(pX, pY + pH); ctx.lineTo(pX + pW, pY + pH);
+    ctx.stroke();
+
+    // X ticks (Range)
+    ctx.fillStyle = LC.textDim;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (const r of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]) {
+      const x = pX + ((Math.log10(r) - logRMin) / (logRMax - logRMin)) * pW;
+      ctx.fillStyle = LC.textDim;
+      ctx.fillText(String(r), x, pY + pH + 5);
+      ctx.beginPath(); ctx.moveTo(x, pY + pH); ctx.lineTo(x, pY + pH + 3);
+      ctx.strokeStyle = LC.textDim; ctx.stroke();
+    }
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText('Range (km)', pX + pW / 2, pY + pH + 22);
+
+    // Y ticks (Power)
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '9px JetBrains Mono, monospace';
+    const pTicks: [number, string][] = [
+      [0.1,'0.1 MW'],[1,'1 MW'],[10,'10 MW'],[100,'100 MW'],
+      [1000,'1 GW'],[10000,'10 GW'],[100000,'100 GW'],
+    ];
+    for (const [pv, label] of pTicks) {
+      const y = pY + (1 - (Math.log10(pv) - logPMin) / (logPMax - logPMin)) * pH;
+      ctx.fillStyle = LC.textDim;
+      ctx.fillText(label, pX - 5, y);
+      ctx.beginPath(); ctx.moveTo(pX - 3, y); ctx.lineTo(pX, y);
+      ctx.strokeStyle = LC.textDim; ctx.stroke();
+    }
+
+    // Title
+    ctx.fillStyle = LC.text;
+    ctx.font = 'bold 12px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`Range vs Power \u2014 1s Impulse (${apert}cm aperture, ${wav}nm)`, W / 2, pY - 8);
+
+    // ── Color legend bar (right side) ─────────────────
+    const legX = pX + pW + 14, legW = 12;
+    const logDMin = -2, logDMax = Math.log10(300);
+
+    for (let i = 0; i < pH; i++) {
+      const t = i / pH; // 0 = top (max depth), 1 = bottom (min depth)
+      const mm = Math.pow(10, logDMax - t * (logDMax - logDMin));
+      const [r, g, b] = penToColor(mm / 1000);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(legX, pY + i, legW, 1.5);
+    }
+    ctx.strokeStyle = LC.border;
+    ctx.strokeRect(legX, pY, legW, pH);
+
+    // Legend labels
+    ctx.fillStyle = LC.textDim;
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const { mm, text } of [
+      { mm: 300, text: '30cm' }, { mm: 50, text: '5cm' },
+      { mm: 1, text: '1mm' }, { mm: 0.01, text: '~0' },
+    ]) {
+      const y = mm <= 0.01
+        ? pY + pH
+        : pY + ((logDMax - Math.log10(mm)) / (logDMax - logDMin)) * pH;
+      ctx.fillText(text, legX + legW + 3, y);
+    }
+
+    return () => {};
   });
 </script>
 
@@ -455,10 +674,13 @@
 
           <!-- Power -->
           <div class="field-group">
-            <label class="field-label">Power (MW)</label>
+            <label class="field-label">Power ({formatPowerCompact(laserPower)})</label>
             <div class="slider-row">
-              <input type="range" min="0.1" max="100" step="0.1" bind:value={laserPower} class="laser-slider" />
-              <input type="number" bind:value={laserPower} min="0.1" max="1000" step="0.1" class="slider-num" />
+              <input type="range" min="0" max="1000" step="1"
+                value={powerToSlider(laserPower)}
+                oninput={(e) => laserPower = sliderToPower(+(e.target as HTMLInputElement).value)}
+                class="laser-slider" />
+              <input type="number" bind:value={laserPower} min="0.1" max="100000" step="0.1" class="slider-num" />
             </div>
           </div>
 
@@ -538,6 +760,11 @@
       <!-- ── Continuous Chart ──────────────────────────── -->
       <div class="chart-section" style="margin-top: 1rem;">
         <canvas bind:this={laserCanvas}></canvas>
+      </div>
+
+      <!-- ── Range vs Power Heatmap ────────────────────── -->
+      <div class="chart-section heatmap-wrap" style="margin-top: 1rem;">
+        <canvas bind:this={heatmapCanvas}></canvas>
       </div>
 
     {/if}
@@ -934,6 +1161,11 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 1.25rem;
+  }
+
+  .heatmap-wrap canvas {
+    width: 100%;
+    height: auto;
   }
 
   /* ── Responsive ─────────────────────────────────── */
