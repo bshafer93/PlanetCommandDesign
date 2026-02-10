@@ -3,11 +3,13 @@
   import StructSizer from './tools/struct-sizer/StructSizer.svelte';
   import PowerGen from './tools/power-gen/PowerGen.svelte';
   import ProductionChain from './tools/production-chain/ProductionChain.svelte';
+  import Calculations from './tools/calculations/Calculations.svelte';
 
   const tools: ToolDef[] = [
     { id: 'struct-sizer', label: 'struct_sizer', component: StructSizer },
     { id: 'power-gen', label: 'power_gen', component: PowerGen },
     { id: 'production-chain', label: 'production_chain', component: ProductionChain },
+    { id: 'calculations', label: 'calculations', component: Calculations },
   ];
 
   let activeToolId = $state(getInitialTab());
