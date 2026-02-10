@@ -1,5 +1,8 @@
 <script lang="ts">
-  type SubTab = 'projectile';
+  import { Chart, registerables } from 'chart.js';
+  Chart.register(...registerables);
+
+  type SubTab = 'projectile' | 'laser';
   let activeSubTab: SubTab = $state('projectile');
 
   // ── Shape types ────────────────────────────────────
@@ -68,6 +71,195 @@
     if (m3 < 0.001) return (m3 * 1e6).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' cm³';
     return m3.toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' m³';
   }
+
+  // ══════════════════════════════════════════════════════
+  // ── Laser Calculator ─────────────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  // Chart constants
+  const LC = {
+    text: '#e2e8f0',
+    textDim: '#8492a6',
+    border: '#2a3142',
+    surface: '#1a2030',
+    accent: '#63b3ed',
+    orange: '#ed8936',
+    green: '#68d391',
+    red: '#fc8181',
+    purple: '#b794f4',
+  };
+  const chartFont = { family: "'JetBrains Mono', monospace" as const, size: 12, weight: 500 as const };
+
+  let laserAperture = $state(30);     // cm
+  let laserWavelength = $state(1064); // nm
+  let laserPower = $state(1);         // MW
+  let laserRange = $state(100);       // km
+
+  // ── Absorption model for steel vs wavelength ─────────
+  function getAbsorption(nm: number): number {
+    const pts: [number, number][] = [
+      [200, 0.58], [400, 0.50], [700, 0.42],
+      [1064, 0.38], [2000, 0.32], [5000, 0.25], [10600, 0.10],
+    ];
+    if (nm <= pts[0][0]) return pts[0][1];
+    if (nm >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (nm >= pts[i][0] && nm <= pts[i + 1][0]) {
+        const t = (nm - pts[i][0]) / (pts[i + 1][0] - pts[i][0]);
+        return pts[i][1] + t * (pts[i + 1][1] - pts[i][1]);
+      }
+    }
+    return 0.35;
+  }
+
+  let laserAbsorption = $derived(getAbsorption(laserWavelength));
+
+  // Spot diameter via diffraction limit: d = 2.44 × λ × R / D
+  let spotDiameter = $derived(2.44 * (laserWavelength * 1e-9) * (laserRange * 1000) / (laserAperture / 100));
+  let spotArea = $derived(Math.PI * (spotDiameter / 2) ** 2);
+
+  // Power density at target
+  let absorbedPowerDensity = $derived(laserAbsorption * (laserPower * 1e6) / spotArea); // W/m²
+
+  // Steel thermal properties
+  const STEEL = {
+    density: 7850,           // kg/m³
+    specificHeat: 500,       // J/(kg·K)
+    meltingTemp: 1773,       // K
+    ambientTemp: 300,        // K
+    latentHeatFusion: 270000, // J/kg
+  };
+  const steelEnergyPerVolume = STEEL.density * (
+    STEEL.specificHeat * (STEEL.meltingTemp - STEEL.ambientTemp) + STEEL.latentHeatFusion
+  ); // J/m³
+
+  // Penetration depth (m) = absorbed_power_density × time / energy_per_volume
+  function calcPen(apd: number, t: number): number {
+    return apd * t / steelEnergyPerVolume;
+  }
+
+  const maxPlate = 0.3; // meters
+  const durations = [1, 5, 10, 30];
+  const durColors = [LC.accent, LC.green, LC.orange, LC.red];
+  const durLabels = ['1 s', '5 s', '10 s', '30 s'];
+
+  let penDepths = $derived(durations.map(t => calcPen(absorbedPowerDensity, t)));
+  let penPcts = $derived(penDepths.map(d => Math.min(d / maxPlate * 100, 100)));
+
+  function formatDepth(m: number): string {
+    if (!isFinite(m) || isNaN(m)) return '—';
+    if (m >= 1) return m.toFixed(2) + ' m';
+    if (m >= 0.01) return (m * 100).toFixed(1) + ' cm';
+    if (m >= 0.001) return (m * 1000).toFixed(2) + ' mm';
+    return (m * 1e6).toFixed(0) + ' μm';
+  }
+
+  function formatSpot(m: number): string {
+    if (!isFinite(m) || isNaN(m)) return '—';
+    if (m >= 1) return m.toFixed(2) + ' m';
+    if (m >= 0.01) return (m * 100).toFixed(1) + ' cm';
+    return (m * 1000).toFixed(2) + ' mm';
+  }
+
+  function formatPowerDensity(wm2: number): string {
+    if (!isFinite(wm2) || isNaN(wm2)) return '—';
+    if (wm2 >= 1e9) return (wm2 / 1e9).toFixed(2) + ' GW/m²';
+    if (wm2 >= 1e6) return (wm2 / 1e6).toFixed(2) + ' MW/m²';
+    if (wm2 >= 1e3) return (wm2 / 1e3).toFixed(1) + ' kW/m²';
+    return wm2.toFixed(0) + ' W/m²';
+  }
+
+  // ── Chart ──────────────────────────────────────────
+  let laserCanvas = $state<HTMLCanvasElement>();
+
+  $effect(() => {
+    if (!laserCanvas || activeSubTab !== 'laser') return;
+    const apd = absorbedPowerDensity;
+    const numPoints = 200;
+    const maxTime = 30;
+    const times: number[] = [];
+    const depths: number[] = [];
+    for (let i = 0; i <= numPoints; i++) {
+      const t = (i / numPoints) * maxTime;
+      times.push(t);
+      depths.push(Math.min(calcPen(apd, t), maxPlate));
+    }
+    const chart = new Chart(laserCanvas, {
+      type: 'line',
+      data: {
+        labels: times.map(t => t.toFixed(1)),
+        datasets: [
+          {
+            label: 'Penetration Depth',
+            data: depths.map(d => d * 1000), // convert to mm
+            borderColor: LC.accent,
+            backgroundColor: LC.accent + '22',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+          },
+          {
+            label: 'Plate Thickness (300mm)',
+            data: times.map(() => maxPlate * 1000),
+            borderColor: LC.red + '88',
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2.2,
+        scales: {
+          x: {
+            title: { display: true, text: 'Time (s)', color: LC.textDim, font: chartFont },
+            ticks: {
+              color: LC.textDim,
+              font: { size: 10 },
+              maxTicksLimit: 12,
+              callback: (_, i) => {
+                const t = times[i as number];
+                return t !== undefined && t % 5 === 0 ? t + 's' : '';
+              },
+            },
+            grid: { color: LC.border },
+          },
+          y: {
+            title: { display: true, text: 'Depth (mm)', color: LC.textDim, font: chartFont },
+            ticks: { color: LC.textDim, font: { size: 10 } },
+            grid: { color: LC.border },
+            min: 0,
+            max: Math.max(maxPlate * 1000, depths[depths.length - 1] * 1000 * 1.1),
+          },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: 'Steel Penetration vs Exposure Time',
+            color: LC.text,
+            font: { ...chartFont, size: 13, weight: 600 as const },
+          },
+          legend: {
+            labels: { color: LC.textDim, font: { size: 10 }, padding: 8 },
+          },
+          tooltip: {
+            backgroundColor: LC.surface,
+            borderColor: LC.border,
+            borderWidth: 1,
+            titleColor: LC.text,
+            bodyColor: LC.textDim,
+            callbacks: {
+              title: (items) => items[0].label + ' s',
+              label: (item) => ' ' + item.dataset.label + ': ' + Number(item.raw).toFixed(2) + ' mm',
+            },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  });
 </script>
 
 <section class="calculations">
@@ -81,6 +273,13 @@
       onclick={() => activeSubTab = 'projectile'}
     >
       Projectile
+    </button>
+    <button
+      class="sub-tab-btn"
+      class:active={activeSubTab === 'laser'}
+      onclick={() => activeSubTab = 'laser'}
+    >
+      Lasers
     </button>
   </nav>
 
@@ -196,6 +395,149 @@
             <span class="result-value">{formatEnergy(energy)}</span>
           </div>
         </div>
+      </div>
+
+    {/if}
+
+    {#if activeSubTab === 'laser'}
+
+      <!-- ── Governing Equations ───────────────────────── -->
+      <div class="equations-section">
+        <h3>Governing Equations</h3>
+        <div class="equation-block">
+          <div class="equation">
+            <span class="eq-var">d<sub>spot</sub></span> = 2.44 &middot; <span class="eq-var">&lambda;</span> &middot; <span class="eq-var">R</span> / <span class="eq-var">D</span>
+          </div>
+          <div class="eq-label">Diffraction-limited spot diameter at range</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">&lambda;</span> = wavelength &middot;
+            <span class="eq-var-sm">R</span> = range &middot;
+            <span class="eq-var-sm">D</span> = aperture diameter
+          </div>
+        </div>
+        <div class="equation-block" style="margin-top: 0.75rem;">
+          <div class="equation">
+            <span class="eq-var">depth</span> = <span class="eq-var">&alpha;</span> &middot; <span class="eq-var">P</span> &middot; <span class="eq-var">t</span> / (<span class="eq-var">A<sub>spot</sub></span> &middot; <span class="eq-var">&rho;</span> &middot; (<span class="eq-var">c</span>&middot;&Delta;<span class="eq-var">T</span> + <span class="eq-var">L<sub>f</sub></span>))
+          </div>
+          <div class="eq-label">Penetration depth &mdash; energy-balance melt-through model</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">&alpha;</span> = absorption &middot;
+            <span class="eq-var-sm">P</span> = power (W) &middot;
+            <span class="eq-var-sm">t</span> = time (s) &middot;
+            <span class="eq-var-sm">&rho;</span> = density &middot;
+            <span class="eq-var-sm">c</span> = specific heat &middot;
+            <span class="eq-var-sm">L<sub>f</sub></span> = latent heat of fusion
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Calculator ────────────────────────────────── -->
+      <div class="calc-panel">
+        <div class="calc-grid">
+
+          <!-- Aperture -->
+          <div class="field-group">
+            <label class="field-label">Aperture (cm)</label>
+            <div class="slider-row">
+              <input type="range" min="5" max="200" step="1" bind:value={laserAperture} class="laser-slider" />
+              <input type="number" bind:value={laserAperture} min="5" max="200" step="1" class="slider-num" />
+            </div>
+          </div>
+
+          <!-- Wavelength -->
+          <div class="field-group">
+            <label class="field-label">Wavelength (nm)</label>
+            <div class="slider-row">
+              <input type="range" min="200" max="10600" step="1" bind:value={laserWavelength} class="laser-slider" />
+              <input type="number" bind:value={laserWavelength} min="200" max="10600" step="1" class="slider-num" />
+            </div>
+          </div>
+
+          <!-- Power -->
+          <div class="field-group">
+            <label class="field-label">Power (MW)</label>
+            <div class="slider-row">
+              <input type="range" min="0.1" max="100" step="0.1" bind:value={laserPower} class="laser-slider" />
+              <input type="number" bind:value={laserPower} min="0.1" max="1000" step="0.1" class="slider-num" />
+            </div>
+          </div>
+
+          <!-- Range -->
+          <div class="field-group">
+            <label class="field-label">Range (km)</label>
+            <div class="slider-row">
+              <input type="range" min="1" max="1000" step="1" bind:value={laserRange} class="laser-slider" />
+              <input type="number" bind:value={laserRange} min="1" max="10000" step="1" class="slider-num" />
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Computed values ─────────────────────────── -->
+        <div class="results">
+          <div class="result-row">
+            <span class="result-label">Spot diameter at target</span>
+            <span class="result-value">{formatSpot(spotDiameter)}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Absorption coeff. (&alpha;)</span>
+            <span class="result-value">{(laserAbsorption * 100).toFixed(1)}%</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Absorbed power density</span>
+            <span class="result-value">{formatPowerDensity(absorbedPowerDensity)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Penetration Bar ───────────────────────────── -->
+      <div class="calc-panel" style="margin-top: 1rem;">
+        <h3 class="bar-title">Steel Plate Penetration (up to {maxPlate * 100} cm)</h3>
+
+        <div class="pen-bar-wrapper">
+          <div class="pen-bar-track">
+            {#each [3, 2, 1, 0] as i}
+              <div
+                class="pen-fill"
+                style="width: {penPcts[i]}%; background: {durColors[i]}33; border-right: 2px solid {durColors[i]};"
+              ></div>
+            {/each}
+
+            {#each durations as _, i}
+              {#if penPcts[i] > 0 && penPcts[i] <= 100}
+                <div class="pen-marker" style="left: {penPcts[i]}%;">
+                  <span class="pen-marker-label" style="color: {durColors[i]};">{durLabels[i]}</span>
+                </div>
+              {/if}
+            {/each}
+          </div>
+
+          <!-- Scale -->
+          <div class="pen-scale">
+            <span>0</span>
+            <span>10 cm</span>
+            <span>20 cm</span>
+            <span>30 cm</span>
+          </div>
+        </div>
+
+        <!-- Per-duration results -->
+        <div class="pen-results">
+          {#each durations as t, i}
+            <div class="pen-result-row">
+              <span class="pen-dur" style="color: {durColors[i]};">{durLabels[i]}</span>
+              <span class="pen-depth">{formatDepth(penDepths[i])}</span>
+              <span class="pen-status" style="color: {penDepths[i] >= maxPlate ? '#68d391' : LC.textDim};">
+                {penDepths[i] >= maxPlate ? 'PENETRATES' : penDepths[i] > 0.001 ? 'partial' : 'negligible'}
+              </span>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <!-- ── Continuous Chart ──────────────────────────── -->
+      <div class="chart-section" style="margin-top: 1rem;">
+        <canvas bind:this={laserCanvas}></canvas>
       </div>
 
     {/if}
@@ -470,10 +812,137 @@
     font-size: 1.1rem;
   }
 
+  /* ── Slider row ─────────────────────────────────── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .laser-slider {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 6px;
+  }
+
+  .slider-num {
+    width: 80px;
+    flex-shrink: 0;
+  }
+
+  /* ── Penetration Bar ──────────────────────────────── */
+  .bar-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .pen-bar-wrapper {
+    margin-bottom: 1.25rem;
+  }
+
+  .pen-bar-track {
+    position: relative;
+    height: 36px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .pen-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+
+  .pen-marker {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .pen-marker-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 2px 4px;
+    background: var(--bg);
+    border-radius: 3px;
+  }
+
+  .pen-scale {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+  }
+
+  /* ── Per-duration results ─────────────────────────── */
+  .pen-results {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+  }
+
+  .pen-result-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .pen-dur {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .pen-depth {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .pen-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Chart section ────────────────────────────────── */
+  .chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
   /* ── Responsive ─────────────────────────────────── */
   @media (max-width: 700px) {
     .calc-grid {
       grid-template-columns: 1fr;
+    }
+    .pen-results {
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 </style>
