@@ -1,0 +1,25 @@
+{
+  "description": "Efficiency assumptions for weapon types",
+  "laser": {
+    "opticalCoupling": 0.20,
+    "electricalToLaser": 0.40,
+    "overallEfficiency": 0.08,
+    "weaponEnergy_kJ": 312,
+    "weaponPower_kW": 313,
+    "note": "Delivery efficiency is approximately range-independent over 10-100m due to diffraction limits"
+  },
+  "chargedParticleBeam": {
+    "depositionEfficiency": 0.60,
+    "electricalToBeam": 0.30,
+    "overallEfficiency": 0.18,
+    "weaponEnergy_kJ": 140,
+    "note": "Space-charge divergence dominates at required beam power (~40 kW at target)"
+  },
+  "neutralParticleBeam": {
+    "depositionEfficiency": 0.60,
+    "electricalToBeam": 0.30,
+    "overallEfficiency": 0.18,
+    "weaponEnergy_kJ": 140,
+    "note": "Neutralization removes space-charge blowup; range limited by emittance and pointing stability"
+  }
+}

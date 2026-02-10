@@ -1,0 +1,36 @@
+{
+  "description": "Feasibility and weapon energy requirements by beam type and range",
+  "chargedParticleBeam": {
+    "limitingFactor": "Space-charge divergence",
+    "ranges": [
+      { "distance_m": 10,   "label": "10 m",   "spotFeasible": true,  "weaponEnergy_kJ": 140,  "status": "feasible" },
+      { "distance_m": 100,  "label": "100 m",  "spotFeasible": false, "weaponEnergy_kJ": null,  "status": "marginal/unstable", "note": "Energy rapidly diverging, >>140 kJ" },
+      { "distance_m": 300,  "label": "300 m",  "spotFeasible": false, "weaponEnergy_kJ": null,  "status": "impossible" }
+    ],
+    "hardCutoff_m": 100,
+    "hardCutoffLabel": "~100 m",
+    "summary": "Cannot punch a 1 cm hole through 1 cm steel beyond ~100 m, regardless of available power"
+  },
+  "neutralParticleBeam": {
+    "limitingFactor": "Emittance and pointing stability",
+    "ranges": [
+      { "distance_m": 10,    "label": "10 m",   "spotFeasible": true,  "weaponEnergy_kJ": 140,  "status": "feasible" },
+      { "distance_m": 100,   "label": "100 m",  "spotFeasible": true,  "weaponEnergy_kJ": 140,  "status": "feasible" },
+      { "distance_m": 1000,  "label": "1 km",   "spotFeasible": true,  "weaponEnergy_kJ": 140,  "status": "difficult but possible" },
+      { "distance_m": 10000, "label": "10 km",  "spotFeasible": false, "weaponEnergy_kJ": null,  "status": "marginal", "note": ">>140 kJ" },
+      { "distance_m": 100000,"label": "100 km", "spotFeasible": false, "weaponEnergy_kJ": null,  "status": "impossible" }
+    ],
+    "hardCutoff_m": 10000,
+    "hardCutoffLabel": "~1-10 km",
+    "summary": "Feasible to ~km scale, physically implausible beyond ~10 km regardless of power"
+  },
+  "laser": {
+    "limitingFactor": "Diffraction",
+    "ranges": [
+      { "distance_m": 10,   "label": "10 m",   "spotFeasible": true, "weaponEnergy_kJ": 312, "status": "feasible" },
+      { "distance_m": 100,  "label": "100 m",  "spotFeasible": true, "weaponEnergy_kJ": 312, "status": "feasible" }
+    ],
+    "hardCutoffLabel": "Diffraction-limited (>>km)",
+    "summary": "Range does not meaningfully increase required weapon energy until diffraction dominates"
+  }
+}

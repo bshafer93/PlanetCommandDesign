@@ -1,0 +1,25 @@
+{
+  "description": "Fixed target assumptions for particle beam penetration analysis",
+  "target": {
+    "material": "Steel",
+    "plateThickness_m": 0.01,
+    "holeDiameter_m": 0.01,
+    "holeRadius_m": 0.005,
+    "punchThroughTime_s": 1
+  },
+  "steel": {
+    "density_kgm3": 7800,
+    "removalEnergy_MJkg": 4,
+    "specificHeat_JkgK": 500,
+    "meltingTemp_K": 1773,
+    "ambientTemp_K": 300,
+    "latentHeatFusion_Jkg": 270000
+  },
+  "environment": "vacuum",
+  "energyAtTarget": {
+    "massRemoved_kg": 0.0061,
+    "energyDeposited_kJ": 25,
+    "absorbedPower_kW": 25,
+    "note": "Absolute minimum energy that must reach the steel in 1 second, independent of range"
+  }
+}

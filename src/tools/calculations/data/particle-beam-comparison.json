@@ -1,0 +1,28 @@
+{
+  "description": "Final consolidated comparison — energy at weapon to punch 1cm hole through 1cm steel in 1s (vacuum)",
+  "comparison": [
+    {
+      "weaponType": "Laser",
+      "energy10m_kJ": 312,
+      "energy100m_kJ": 312,
+      "hardCutoff": "Diffraction-limited (>>km)",
+      "color": "#63b3ed"
+    },
+    {
+      "weaponType": "Charged Particle Beam",
+      "energy10m_kJ": 140,
+      "energy100m_kJ": null,
+      "energy100m_note": "Not feasible",
+      "hardCutoff": "~100 m",
+      "color": "#fc8181"
+    },
+    {
+      "weaponType": "Neutral Particle Beam",
+      "energy10m_kJ": 140,
+      "energy100m_kJ": 140,
+      "hardCutoff": "~1-10 km",
+      "color": "#68d391"
+    }
+  ],
+  "keyInsight": "Particle beams require ~55% less weapon energy than lasers at close range, but have strict range cutoffs where no amount of power enables punch-through"
+}

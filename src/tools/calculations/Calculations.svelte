@@ -3,7 +3,7 @@
   import SliderInput from '../../components/SliderInput.svelte';
   Chart.register(...registerables);
 
-  type SubTab = 'projectile' | 'laser';
+  type SubTab = 'projectile' | 'laser' | 'particle';
   let activeSubTab: SubTab = $state('projectile');
 
   // ── Shape types ────────────────────────────────────
@@ -472,6 +472,351 @@
 
     return () => {};
   });
+
+  // ══════════════════════════════════════════════════════
+  // ── Particle Beam Calculator ──────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  let beamType = $state<'neutral' | 'charged'>('neutral');
+  let pbDivergence = $state(10);       // μrad (half-angle)
+  let pbEnergy = $state(100);          // MeV (particle kinetic energy)
+  let pbPower = $state(1);             // MW
+  let pbRange = $state(1);             // km
+
+  const PB_DEPOSITION = 0.60;          // 60% deposition efficiency
+  const PB_R0 = 0.002;                 // 2 mm initial beam radius
+  const PROTON_REST_MASS_MEV = 938.272;
+  const ALFVEN_CURRENT_PROTON = 3.13e7; // ~31.3 MA
+
+  let pbGamma = $derived(1 + pbEnergy / PROTON_REST_MASS_MEV);
+  let pbBeta = $derived(Math.sqrt(1 - 1 / (pbGamma * pbGamma)));
+  let pbBetaGamma = $derived(pbBeta * pbGamma);
+  let pbCurrent = $derived((pbPower * 1e6) / (pbEnergy * 1e6)); // Amperes
+
+  let pbPerveance = $derived(
+    beamType === 'charged'
+      ? (2 * pbCurrent) / (ALFVEN_CURRENT_PROTON * Math.pow(pbBetaGamma, 3))
+      : 0
+  );
+
+  function pbSpotRadiusAt(z_m: number, theta_rad: number, K: number): number {
+    if (K === 0) return PB_R0 + theta_rad * z_m;
+    return PB_R0 + theta_rad * z_m + (K / (2 * PB_R0)) * z_m * z_m;
+  }
+
+  let pbRangeM = $derived(pbRange * 1000);
+  let pbTheta = $derived(pbDivergence * 1e-6);
+  let pbSpotRadius = $derived(pbSpotRadiusAt(pbRangeM, pbTheta, pbPerveance));
+  let pbSpotDiameter = $derived(2 * pbSpotRadius);
+  let pbSpotArea = $derived(Math.PI * pbSpotRadius * pbSpotRadius);
+  let pbAbsorbedPowerDensity = $derived(PB_DEPOSITION * (pbPower * 1e6) / pbSpotArea);
+
+  let pbPenDepths = $derived(durations.map(t => calcPen(pbAbsorbedPowerDensity, t)));
+  let pbPenPcts = $derived(pbPenDepths.map(d => Math.min(d / maxPlate * 100, 100)));
+
+  function calcPenPBStandalone(powerMW: number, rangeKm: number, divUrad: number, energyMeV: number, type: 'neutral' | 'charged'): number {
+    const z = rangeKm * 1000;
+    const theta = divUrad * 1e-6;
+    let K = 0;
+    if (type === 'charged') {
+      const gamma = 1 + energyMeV / PROTON_REST_MASS_MEV;
+      const beta = Math.sqrt(1 - 1 / (gamma * gamma));
+      const bg = beta * gamma;
+      const current = (powerMW * 1e6) / (energyMeV * 1e6);
+      K = (2 * current) / (ALFVEN_CURRENT_PROTON * Math.pow(bg, 3));
+    }
+    const spotR = pbSpotRadiusAt(z, theta, K);
+    const area = Math.PI * spotR * spotR;
+    const apd = PB_DEPOSITION * (powerMW * 1e6) / area;
+    return apd / steelEnergyPerVolume;
+  }
+
+  function formatCurrent(a: number): string {
+    if (!isFinite(a) || isNaN(a)) return '—';
+    if (a >= 1) return a.toFixed(2) + ' A';
+    if (a >= 0.001) return (a * 1000).toFixed(1) + ' mA';
+    return (a * 1e6).toFixed(0) + ' μA';
+  }
+
+  function formatDivergence(urad: number): string {
+    if (urad >= 1000) return (urad / 1000).toFixed(1) + ' mrad';
+    return urad.toFixed(1) + ' μrad';
+  }
+
+  function formatParticleEnergy(mev: number): string {
+    if (mev >= 1000) return (mev / 1000).toFixed(1) + ' GeV';
+    return mev.toFixed(0) + ' MeV';
+  }
+
+  function formatRangeLabel(km: number): string {
+    if (km < 1) return (km * 1000).toFixed(0) + ' m';
+    return km.toFixed(km < 10 ? 1 : 0) + ' km';
+  }
+
+  // ── Particle beam charts ──────────────────────────────
+  let pbChartCanvas = $state<HTMLCanvasElement>();
+  let pbHeatmapCanvas = $state<HTMLCanvasElement>();
+
+  // Time vs depth chart
+  $effect(() => {
+    if (!pbChartCanvas || activeSubTab !== 'particle') return;
+    const apd = pbAbsorbedPowerDensity;
+    const bt = beamType;
+    const numPoints = 200;
+    const maxTime = 30;
+    const times: number[] = [];
+    const depths: number[] = [];
+    for (let i = 0; i <= numPoints; i++) {
+      const t = (i / numPoints) * maxTime;
+      times.push(t);
+      depths.push(Math.min(calcPen(apd, t), maxPlate));
+    }
+    const chart = new Chart(pbChartCanvas, {
+      type: 'line',
+      data: {
+        labels: times.map(t => t.toFixed(1)),
+        datasets: [
+          {
+            label: 'Penetration Depth',
+            data: depths.map(d => d * 1000),
+            borderColor: LC.green,
+            backgroundColor: LC.green + '22',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+          },
+          {
+            label: 'Plate Thickness (300mm)',
+            data: times.map(() => maxPlate * 1000),
+            borderColor: LC.red + '88',
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2.2,
+        scales: {
+          x: {
+            title: { display: true, text: 'Time (s)', color: LC.textDim, font: chartFont },
+            ticks: {
+              color: LC.textDim,
+              font: { size: 10 },
+              maxTicksLimit: 12,
+              callback: (_, i) => {
+                const t = times[i as number];
+                return t !== undefined && t % 5 === 0 ? t + 's' : '';
+              },
+            },
+            grid: { color: LC.border },
+          },
+          y: {
+            title: { display: true, text: 'Depth (mm)', color: LC.textDim, font: chartFont },
+            ticks: { color: LC.textDim, font: { size: 10 } },
+            grid: { color: LC.border },
+            min: 0,
+            max: Math.max(maxPlate * 1000, depths[depths.length - 1] * 1000 * 1.1),
+          },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: `Steel Penetration vs Exposure Time (${bt === 'charged' ? 'Charged' : 'Neutral'} Beam)`,
+            color: LC.text,
+            font: { ...chartFont, size: 13, weight: 600 as const },
+          },
+          legend: {
+            labels: { color: LC.textDim, font: { size: 10 }, padding: 8 },
+          },
+          tooltip: {
+            backgroundColor: LC.surface,
+            borderColor: LC.border,
+            borderWidth: 1,
+            titleColor: LC.text,
+            bodyColor: LC.textDim,
+            callbacks: {
+              title: (items) => items[0].label + ' s',
+              label: (item) => ' ' + item.dataset.label + ': ' + Number(item.raw).toFixed(2) + ' mm',
+            },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  });
+
+  // Range vs Power heatmap
+  $effect(() => {
+    if (!pbHeatmapCanvas || activeSubTab !== 'particle') return;
+    const ctx = pbHeatmapCanvas.getContext('2d')!;
+
+    const W = 620, H = 420;
+    pbHeatmapCanvas.width = W;
+    pbHeatmapCanvas.height = H;
+
+    const M = { top: 32, right: 85, bottom: 48, left: 68 };
+    const pX = M.left, pY = M.top;
+    const pW = W - M.left - M.right;
+    const pH = H - M.top - M.bottom;
+
+    const div = pbDivergence;
+    const eng = pbEnergy;
+    const bt = beamType;
+    const curRange = pbRange;
+    const curPower = pbPower;
+
+    // 0.001 km (1 m) → 100 km; 0.01 MW (10 kW) → 100 GW
+    const logRMin = -3, logRMax = 2;
+    const logPMin = -2, logPMax = 5;
+
+    ctx.fillStyle = LC.surface;
+    ctx.fillRect(0, 0, W, H);
+
+    const gridW = 150, gridH = 100;
+    const tmp = document.createElement('canvas');
+    tmp.width = gridW;
+    tmp.height = gridH;
+    const tmpCtx = tmp.getContext('2d')!;
+    const imgData = tmpCtx.createImageData(gridW, gridH);
+    const px = imgData.data;
+
+    for (let row = 0; row < gridH; row++) {
+      const tY = row / (gridH - 1);
+      const pMW = Math.pow(10, logPMax - tY * (logPMax - logPMin));
+      for (let col = 0; col < gridW; col++) {
+        const tX = col / (gridW - 1);
+        const rKm = Math.pow(10, logRMin + tX * (logRMax - logRMin));
+        const pen = calcPenPBStandalone(pMW, rKm, div, eng, bt);
+        const [r, g, b] = penToColor(pen);
+        const idx = (row * gridW + col) * 4;
+        px[idx] = r; px[idx+1] = g; px[idx+2] = b; px[idx+3] = 255;
+      }
+    }
+    tmpCtx.putImageData(imgData, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(tmp, pX, pY, pW, pH);
+
+    // Crosshairs
+    const xCH = pX + ((Math.log10(Math.max(curRange, 0.001)) - logRMin) / (logRMax - logRMin)) * pW;
+    const yCH = pY + (1 - (Math.log10(Math.max(curPower, 0.01)) - logPMin) / (logPMax - logPMin)) * pH;
+
+    ctx.strokeStyle = '#ffffffaa';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(xCH, pY); ctx.lineTo(xCH, pY + pH);
+    ctx.moveTo(pX, yCH); ctx.lineTo(pX + pW, yCH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.arc(xCH, yCH, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const curPen = calcPenPBStandalone(curPower, curRange, div, eng, bt);
+    const penLabel = formatDepth(curPen);
+    ctx.font = 'bold 11px JetBrains Mono, monospace';
+    const onRight = xCH < pX + pW / 2;
+    ctx.textAlign = onRight ? 'left' : 'right';
+    ctx.textBaseline = 'bottom';
+    const lx = xCH + (onRight ? 10 : -10);
+    const tm = ctx.measureText(penLabel);
+    const boxX = onRight ? lx - 3 : lx - tm.width - 3;
+    ctx.fillStyle = '#000000cc';
+    ctx.fillRect(boxX, yCH - 24, tm.width + 6, 17);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(penLabel, lx, yCH - 9);
+
+    // Axes
+    ctx.strokeStyle = LC.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pX, pY); ctx.lineTo(pX, pY + pH); ctx.lineTo(pX + pW, pY + pH);
+    ctx.stroke();
+
+    // X ticks (Range)
+    ctx.fillStyle = LC.textDim;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const rTicks: [number, string][] = [
+      [0.001, '1m'], [0.01, '10m'], [0.1, '100m'],
+      [1, '1km'], [10, '10km'], [100, '100km'],
+    ];
+    for (const [r, label] of rTicks) {
+      const x = pX + ((Math.log10(r) - logRMin) / (logRMax - logRMin)) * pW;
+      ctx.fillStyle = LC.textDim;
+      ctx.fillText(label, x, pY + pH + 5);
+      ctx.beginPath(); ctx.moveTo(x, pY + pH); ctx.lineTo(x, pY + pH + 3);
+      ctx.strokeStyle = LC.textDim; ctx.stroke();
+    }
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText('Range', pX + pW / 2, pY + pH + 22);
+
+    // Y ticks (Power)
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '9px JetBrains Mono, monospace';
+    const pTicks: [number, string][] = [
+      [0.01, '10 kW'], [0.1, '100 kW'], [1, '1 MW'], [10, '10 MW'],
+      [100, '100 MW'], [1000, '1 GW'], [10000, '10 GW'], [100000, '100 GW'],
+    ];
+    for (const [pv, label] of pTicks) {
+      const y = pY + (1 - (Math.log10(pv) - logPMin) / (logPMax - logPMin)) * pH;
+      ctx.fillStyle = LC.textDim;
+      ctx.fillText(label, pX - 5, y);
+      ctx.beginPath(); ctx.moveTo(pX - 3, y); ctx.lineTo(pX, y);
+      ctx.strokeStyle = LC.textDim; ctx.stroke();
+    }
+
+    // Title
+    const beamLabel = bt === 'charged' ? 'Charged' : 'Neutral';
+    const titleDetail = bt === 'charged'
+      ? `${beamLabel}, ${formatDivergence(div)}, ${formatParticleEnergy(eng)}`
+      : `${beamLabel}, ${formatDivergence(div)}`;
+    ctx.fillStyle = LC.text;
+    ctx.font = 'bold 12px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`Range vs Power \u2014 1s Impulse (${titleDetail})`, W / 2, pY - 8);
+
+    // Color legend bar
+    const legX = pX + pW + 14, legW = 12;
+    const logDMin = -2, logDMax = Math.log10(300);
+
+    for (let i = 0; i < pH; i++) {
+      const t = i / pH;
+      const mm = Math.pow(10, logDMax - t * (logDMax - logDMin));
+      const [r, g, b] = penToColor(mm / 1000);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(legX, pY + i, legW, 1.5);
+    }
+    ctx.strokeStyle = LC.border;
+    ctx.strokeRect(legX, pY, legW, pH);
+
+    ctx.fillStyle = LC.textDim;
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const { mm, text } of [
+      { mm: 300, text: '30cm' }, { mm: 50, text: '5cm' },
+      { mm: 1, text: '1mm' }, { mm: 0.01, text: '~0' },
+    ]) {
+      const y = mm <= 0.01
+        ? pY + pH
+        : pY + ((logDMax - Math.log10(mm)) / (logDMax - logDMin)) * pH;
+      ctx.fillText(text, legX + legW + 3, y);
+    }
+
+    return () => {};
+  });
 </script>
 
 <section class="calculations">
@@ -492,6 +837,13 @@
       onclick={() => activeSubTab = 'laser'}
     >
       Lasers
+    </button>
+    <button
+      class="sub-tab-btn"
+      class:active={activeSubTab === 'particle'}
+      onclick={() => activeSubTab = 'particle'}
+    >
+      Particle Beams
     </button>
   </nav>
 
@@ -724,6 +1076,149 @@
       <!-- ── Range vs Power Heatmap ────────────────────── -->
       <div class="chart-section heatmap-wrap" style="margin-top: 1rem;">
         <canvas bind:this={heatmapCanvas}></canvas>
+      </div>
+
+    {/if}
+
+    {#if activeSubTab === 'particle'}
+
+      <!-- ── Governing Equations ───────────────────────── -->
+      <div class="equations-section">
+        <h3>Governing Equations</h3>
+        <div class="equation-block">
+          <div class="equation">
+            <span class="eq-var">d<sub>spot</sub></span> = 2(<span class="eq-var">r<sub>0</sub></span> + <span class="eq-var">&theta;</span> &middot; <span class="eq-var">R</span> + <span class="eq-var">K</span> &middot; <span class="eq-var">R</span><sup>2</sup> / 2<span class="eq-var">r<sub>0</sub></span>)
+          </div>
+          <div class="eq-label">Spot diameter at range &mdash; geometric + space-charge expansion</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">r<sub>0</sub></span> = initial beam radius (2 mm) &middot;
+            <span class="eq-var-sm">&theta;</span> = half-angle divergence &middot;
+            <span class="eq-var-sm">R</span> = range &middot;
+            <span class="eq-var-sm">K</span> = perveance (0 for neutral beams)
+          </div>
+        </div>
+        <div class="equation-block" style="margin-top: 0.75rem;">
+          <div class="equation">
+            <span class="eq-var">K</span> = 2<span class="eq-var">I</span> / (<span class="eq-var">I<sub>A</sub></span> &middot; (<span class="eq-var">&beta;&gamma;</span>)<sup>3</sup>)
+          </div>
+          <div class="eq-label">Generalized perveance &mdash; space-charge strength (charged beams only)</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">I</span> = beam current (P/E) &middot;
+            <span class="eq-var-sm">I<sub>A</sub></span> = Alfv&eacute;n current (31.3 MA for protons) &middot;
+            <span class="eq-var-sm">&beta;&gamma;</span> = relativistic momentum factor
+          </div>
+        </div>
+        <div class="equation-block" style="margin-top: 0.75rem;">
+          <div class="equation">
+            <span class="eq-var">depth</span> = <span class="eq-var">&eta;</span> &middot; <span class="eq-var">P</span> &middot; <span class="eq-var">t</span> / (<span class="eq-var">A<sub>spot</sub></span> &middot; <span class="eq-var">&rho;</span> &middot; (<span class="eq-var">c</span>&middot;&Delta;<span class="eq-var">T</span> + <span class="eq-var">L<sub>f</sub></span>))
+          </div>
+          <div class="eq-label">Penetration depth &mdash; energy-balance melt-through model</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">&eta;</span> = deposition efficiency (60%) &middot;
+            <span class="eq-var-sm">P</span> = beam power &middot;
+            <span class="eq-var-sm">t</span> = time &middot;
+            <span class="eq-var-sm">&rho;</span> = density &middot;
+            <span class="eq-var-sm">c</span> = specific heat &middot;
+            <span class="eq-var-sm">L<sub>f</sub></span> = latent heat of fusion
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Calculator ──────────────────────────────────── -->
+      <div class="calc-panel">
+        <div class="field-group" style="margin-bottom: 1.25rem;">
+          <label class="field-label">Beam Type</label>
+          <div class="shape-buttons">
+            <button class="shape-btn" class:active={beamType === 'neutral'} onclick={() => beamType = 'neutral'}>Neutral</button>
+            <button class="shape-btn" class:active={beamType === 'charged'} onclick={() => beamType = 'charged'}>Charged</button>
+          </div>
+        </div>
+
+        <div class="calc-grid">
+          <SliderInput label="Divergence ({formatDivergence(pbDivergence)})" bind:value={pbDivergence} min={0.5} max={5000} step={0.1} log />
+          <SliderInput label="Particle Energy ({formatParticleEnergy(pbEnergy)})" bind:value={pbEnergy} min={1} max={10000} step={1} log />
+          <SliderInput label="Power ({formatPowerCompact(pbPower)})" bind:value={pbPower} min={0.1} max={100000} step={0.1} log />
+          <SliderInput label="Range ({formatRangeLabel(pbRange)})" bind:value={pbRange} min={0.001} max={100} step={0.001} log inputMax={1000} />
+        </div>
+
+        <!-- ── Computed values ─────────────────────────── -->
+        <div class="results">
+          <div class="result-row">
+            <span class="result-label">Spot diameter at target</span>
+            <span class="result-value">{formatSpot(pbSpotDiameter)}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Beam current</span>
+            <span class="result-value">{formatCurrent(pbCurrent)}</span>
+          </div>
+          {#if beamType === 'charged'}
+            <div class="result-row">
+              <span class="result-label">Generalized perveance (K)</span>
+              <span class="result-value">{pbPerveance.toExponential(2)}</span>
+            </div>
+          {/if}
+          <div class="result-row">
+            <span class="result-label">Deposition efficiency (&eta;)</span>
+            <span class="result-value">{(PB_DEPOSITION * 100).toFixed(0)}%</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Absorbed power density</span>
+            <span class="result-value">{formatPowerDensity(pbAbsorbedPowerDensity)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Penetration Bar ───────────────────────────── -->
+      <div class="calc-panel" style="margin-top: 1rem;">
+        <h3 class="bar-title">Steel Plate Penetration (up to {maxPlate * 100} cm)</h3>
+
+        <div class="pen-bar-wrapper">
+          <div class="pen-bar-track">
+            {#each [3, 2, 1, 0] as i}
+              <div
+                class="pen-fill"
+                style="width: {pbPenPcts[i]}%; background: {durColors[i]}33; border-right: 2px solid {durColors[i]};"
+              ></div>
+            {/each}
+
+            {#each durations as _, i}
+              {#if pbPenPcts[i] > 0 && pbPenPcts[i] <= 100}
+                <div class="pen-marker" style="left: {pbPenPcts[i]}%;">
+                  <span class="pen-marker-label" style="color: {durColors[i]};">{durLabels[i]}</span>
+                </div>
+              {/if}
+            {/each}
+          </div>
+
+          <div class="pen-scale">
+            <span>0</span>
+            <span>10 cm</span>
+            <span>20 cm</span>
+            <span>30 cm</span>
+          </div>
+        </div>
+
+        <div class="pen-results">
+          {#each durations as t, i}
+            <div class="pen-result-row">
+              <span class="pen-dur" style="color: {durColors[i]};">{durLabels[i]}</span>
+              <span class="pen-depth">{formatDepth(pbPenDepths[i])}</span>
+              <span class="pen-status" style="color: {pbPenDepths[i] >= maxPlate ? '#68d391' : LC.textDim};">
+                {pbPenDepths[i] >= maxPlate ? 'PENETRATES' : pbPenDepths[i] > 0.001 ? 'partial' : 'negligible'}
+              </span>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <!-- ── Continuous Chart ──────────────────────────── -->
+      <div class="chart-section" style="margin-top: 1rem;">
+        <canvas bind:this={pbChartCanvas}></canvas>
+      </div>
+
+      <!-- ── Range vs Power Heatmap ────────────────────── -->
+      <div class="chart-section heatmap-wrap" style="margin-top: 1rem;">
+        <canvas bind:this={pbHeatmapCanvas}></canvas>
       </div>
 
     {/if}
