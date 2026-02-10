@@ -683,6 +683,9 @@
     const imgData = tmpCtx.createImageData(gridW, gridH);
     const px = imgData.data;
 
+    // Penetration below 10μm/s (0.01mm) = blacked out (ineffective)
+    const PB_BLACKOUT_MM = 0.01;
+
     for (let row = 0; row < gridH; row++) {
       const tY = row / (gridH - 1);
       const pMW = Math.pow(10, logPMax - tY * (logPMax - logPMin));
@@ -690,9 +693,13 @@
         const tX = col / (gridW - 1);
         const rKm = Math.pow(10, logRMin + tX * (logRMax - logRMin));
         const pen = calcPenPBStandalone(pMW, rKm, div, eng, bt);
-        const [r, g, b] = penToColor(pen);
         const idx = (row * gridW + col) * 4;
-        px[idx] = r; px[idx+1] = g; px[idx+2] = b; px[idx+3] = 255;
+        if (pen * 1000 < PB_BLACKOUT_MM) {
+          px[idx] = 10; px[idx+1] = 12; px[idx+2] = 18; px[idx+3] = 255;
+        } else {
+          const [r, g, b] = penToColor(pen);
+          px[idx] = r; px[idx+1] = g; px[idx+2] = b; px[idx+3] = 255;
+        }
       }
     }
     tmpCtx.putImageData(imgData, 0, 0);
@@ -721,7 +728,7 @@
     ctx.stroke();
 
     const curPen = calcPenPBStandalone(curPower, curRange, div, eng, bt);
-    const penLabel = formatDepth(curPen);
+    const penLabel = curPen * 1000 < PB_BLACKOUT_MM ? 'INEFFECTIVE' : formatDepth(curPen);
     ctx.font = 'bold 11px JetBrains Mono, monospace';
     const onRight = xCH < pX + pW / 2;
     ctx.textAlign = onRight ? 'left' : 'right';
@@ -787,15 +794,19 @@
     ctx.textBaseline = 'bottom';
     ctx.fillText(`Range vs Power \u2014 1s Impulse (${titleDetail})`, W / 2, pY - 8);
 
-    // Color legend bar
+    // Color legend bar (extended to show blackout zone)
     const legX = pX + pW + 14, legW = 12;
-    const logDMin = -2, logDMax = Math.log10(300);
+    const logDMin = -3, logDMax = Math.log10(300);
 
     for (let i = 0; i < pH; i++) {
       const t = i / pH;
       const mm = Math.pow(10, logDMax - t * (logDMax - logDMin));
-      const [r, g, b] = penToColor(mm / 1000);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      if (mm < PB_BLACKOUT_MM) {
+        ctx.fillStyle = 'rgb(10, 12, 18)';
+      } else {
+        const [r, g, b] = penToColor(mm / 1000);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+      }
       ctx.fillRect(legX, pY + i, legW, 1.5);
     }
     ctx.strokeStyle = LC.border;
@@ -808,8 +819,9 @@
     for (const { mm, text } of [
       { mm: 300, text: '30cm' }, { mm: 50, text: '5cm' },
       { mm: 1, text: '1mm' }, { mm: 0.01, text: '~0' },
+      { mm: 0.003, text: 'none' },
     ]) {
-      const y = mm <= 0.01
+      const y = mm <= 0.001
         ? pY + pH
         : pY + ((logDMax - Math.log10(mm)) / (logDMax - logDMin)) * pH;
       ctx.fillText(text, legX + legW + 3, y);
