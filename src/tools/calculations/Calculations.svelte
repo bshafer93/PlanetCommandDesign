@@ -1044,10 +1044,13 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .laser-slider {
     flex: 1;
+    min-width: 0;
     accent-color: var(--accent);
     height: 6px;
   }
