@@ -435,10 +435,6 @@
         <div class="ratio-value">{constraintData.keyRatios.scalingModel}</div>
         <div class="ratio-label">scaling model</div>
       </div>
-      <div class="ratio-card">
-        <div class="ratio-value">{constraintData.timeScaling.fastTimeFactor}&times;</div>
-        <div class="ratio-label">fast-time factor</div>
-      </div>
     </div>
   </div>
 
@@ -512,7 +508,7 @@
 
   .ratio-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }
 
