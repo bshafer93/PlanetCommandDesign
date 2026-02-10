@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Chart, registerables } from 'chart.js';
+  import SliderInput from '../../components/SliderInput.svelte';
   Chart.register(...registerables);
 
   type SubTab = 'projectile' | 'laser';
@@ -95,14 +96,6 @@
   let laserPower = $state(1);         // MW  (stored in MW; 100 GW = 100000)
   let laserRange = $state(100);       // km
 
-  // ── Log-scale power slider (0.1 MW → 100 GW) ────────
-  function powerToSlider(mw: number): number {
-    // log10(0.1)=-1, log10(100000)=5 → 6 decades mapped to 0–1000
-    return ((Math.log10(Math.max(mw, 0.1)) + 1) / 6) * 1000;
-  }
-  function sliderToPower(pos: number): number {
-    return +Math.pow(10, -1 + pos / 1000 * 6).toPrecision(3);
-  }
   function formatPowerCompact(mw: number): string {
     if (mw >= 1000) return (mw / 1000).toPrecision(3) + ' GW';
     return (+mw.toPrecision(3)) + ' MW';
@@ -654,44 +647,10 @@
       <div class="calc-panel">
         <div class="calc-grid">
 
-          <!-- Aperture -->
-          <div class="field-group">
-            <label class="field-label">Aperture (cm)</label>
-            <div class="slider-row">
-              <input type="range" min="5" max="200" step="1" bind:value={laserAperture} class="laser-slider" />
-              <input type="number" bind:value={laserAperture} min="5" max="200" step="1" class="slider-num" />
-            </div>
-          </div>
-
-          <!-- Wavelength -->
-          <div class="field-group">
-            <label class="field-label">Wavelength (nm)</label>
-            <div class="slider-row">
-              <input type="range" min="200" max="10600" step="1" bind:value={laserWavelength} class="laser-slider" />
-              <input type="number" bind:value={laserWavelength} min="200" max="10600" step="1" class="slider-num" />
-            </div>
-          </div>
-
-          <!-- Power -->
-          <div class="field-group">
-            <label class="field-label">Power ({formatPowerCompact(laserPower)})</label>
-            <div class="slider-row">
-              <input type="range" min="0" max="1000" step="1"
-                value={powerToSlider(laserPower)}
-                oninput={(e) => laserPower = sliderToPower(+(e.target as HTMLInputElement).value)}
-                class="laser-slider" />
-              <input type="number" bind:value={laserPower} min="0.1" max="100000" step="0.1" class="slider-num" />
-            </div>
-          </div>
-
-          <!-- Range -->
-          <div class="field-group">
-            <label class="field-label">Range (km)</label>
-            <div class="slider-row">
-              <input type="range" min="1" max="1000" step="1" bind:value={laserRange} class="laser-slider" />
-              <input type="number" bind:value={laserRange} min="1" max="10000" step="1" class="slider-num" />
-            </div>
-          </div>
+          <SliderInput label="Aperture (cm)" bind:value={laserAperture} min={5} max={200} step={1} />
+          <SliderInput label="Wavelength (nm)" bind:value={laserWavelength} min={200} max={10600} step={1} />
+          <SliderInput label="Power ({formatPowerCompact(laserPower)})" bind:value={laserPower} min={0.1} max={100000} step={0.1} log />
+          <SliderInput label="Range (km)" bind:value={laserRange} min={1} max={1000} step={1} inputMax={10000} />
 
         </div>
 
@@ -892,6 +851,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    min-width: 0;
   }
 
   .field-label {
@@ -1037,27 +997,6 @@
     color: var(--accent);
     font-weight: 700;
     font-size: 1.1rem;
-  }
-
-  /* ── Slider row ─────────────────────────────────── */
-  .slider-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .laser-slider {
-    flex: 1;
-    min-width: 0;
-    accent-color: var(--accent);
-    height: 6px;
-  }
-
-  .slider-num {
-    width: 80px;
-    flex-shrink: 0;
   }
 
   /* ── Penetration Bar ──────────────────────────────── */

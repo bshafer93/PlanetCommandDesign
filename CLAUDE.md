@@ -22,13 +22,15 @@ The dev server proxies `/api` requests to `http://localhost:3001` (Express backe
 - **Tool registration** — Each tool is a Svelte component in `src/tools/<name>/`. Register by importing the component and adding `{ id, label, component }` to the `tools` array in `App.svelte`. The `ToolDef` interface is in `src/types.ts`.
 - **Svelte 5 runes** — Use `$state()`, `$derived`, `$effect()`, `bind:value`, `onclick={handler}`, and direct component references (not `svelte:component`).
 - **Styling** — Dark theme via CSS custom properties in `src/styles/global.css`. Fonts: "DM Sans" (body), "JetBrains Mono" (headers/code). No CSS framework.
-- **Charts** — Chart.js with canvas refs (`bind:this`). Colors are hardcoded hex constants (CSS vars don't work in canvas). Each chart is created in a `$effect()` and destroyed on cleanup.
+- **Charts** — Chart.js with canvas refs (`bind:this`). Colors are hardcoded hex constants (CSS vars don't work in canvas). Each chart is created in a `$effect()` and destroyed on cleanup. Raw canvas 2D API used for heatmaps (e.g., range-vs-power in laser calculator).
+- **Reusable components** — Shared UI components live in `src/components/`. Use `SliderInput` for any slider+number input combo (supports linear and `log` mode for large ranges).
 
 ### Current Tools
 
 - **struct-sizer** (`src/tools/struct-sizer/`) — C++ struct memory/padding estimator.
 - **power-gen** (`src/tools/power-gen/`) — Power generator & thruster design. Sub-tabs for Generators (4 charts) and Thrusters (placeholder). Reference data in `data/*.json` (10 files).
 - **production-chain** (`src/tools/production-chain/`) — Production chain design for spacecraft construction. Reference data in `data/*.json` (4 files: material-breakdown, raw-resource-requirements, production-constraints, logistics-vehicles). Charts: material doughnut breakdowns, raw resource bars, raw-vs-finished stacked bars, hauls-to-build log-scale comparisons. Two reference ship scales: 30t baseline orbital-class and 100kt carrier.
+- **calculations** (`src/tools/calculations/`) — Physics calculators with sub-tabs: Projectile (KE = ½mv²) and Lasers (steel penetration via energy-balance melt-through model). Laser tab has slider inputs, penetration bar, time-vs-depth chart, and range-vs-power heatmap with color gradient.
 
 ### Backend
 
