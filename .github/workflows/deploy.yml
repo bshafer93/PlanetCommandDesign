@@ -41,9 +41,7 @@ jobs:
       - name: Install server dependencies and restart
         run: |
           ssh -i ~/.ssh/deploy_key root@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            # Copy package files for server dependency install
             cd /opt/planet-command-server
-            # Create a minimal package.json for production deps
             cat > package.json << 'PKG'
           {
             "name": "planet-command-server",
