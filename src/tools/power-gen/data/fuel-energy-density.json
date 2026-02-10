@@ -1,0 +1,10 @@
+{
+  "title": "Fuel Energy Density",
+  "description": "Energy density by fuel source in joules per kilogram",
+  "unit": "J/kg",
+  "sources": [
+    { "name": "Chemical fuels", "energyDensity": 1e7 },
+    { "name": "Fission (U-235)", "energyDensity": 8e13 },
+    { "name": "Fusion (D-T)", "energyDensityMin": 3e14, "energyDensityMax": 4e14 }
+  ]
+}

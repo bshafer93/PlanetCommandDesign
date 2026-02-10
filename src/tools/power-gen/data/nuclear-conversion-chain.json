@@ -1,0 +1,13 @@
+{
+  "title": "Nuclear Power Conversion Chain (Fission & Fusion)",
+  "description": "Steps in the nuclear-to-electric conversion process using steam",
+  "appliesTo": ["Nuclear power plants", "Nuclear aircraft carriers", "Nuclear submarines"],
+  "steps": [
+    { "step": 1, "name": "Nuclear reaction", "description": "Produces thermal energy" },
+    { "step": 2, "name": "Primary coolant", "description": "Transfers heat" },
+    { "step": 3, "name": "Secondary loop", "description": "Water boils into steam" },
+    { "step": 4, "name": "Turbine", "description": "Converts steam energy to mechanical" },
+    { "step": 5, "name": "Generator", "description": "Converts mechanical to electric" },
+    { "step": 6, "name": "Condenser", "description": "Re-liquefies steam" }
+  ]
+}

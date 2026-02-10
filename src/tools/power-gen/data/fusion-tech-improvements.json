@@ -1,0 +1,11 @@
+{
+  "title": "Ranked Fusion Technology Improvements",
+  "description": "Fusion technology improvements ranked by discussion order",
+  "improvements": [
+    { "rank": 1, "name": "Neutron-tolerant materials" },
+    { "rank": 2, "name": "Ultra-fast predictive control" },
+    { "rank": 3, "name": "Direct energy conversion" },
+    { "rank": 4, "name": "Magnet-light or magnetless confinement" },
+    { "rank": 5, "name": "Practical aneutronic fusion" }
+  ]
+}

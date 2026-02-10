@@ -1,0 +1,20 @@
+{
+  "title": "Radiator Cooling Capacity",
+  "description": "Radiative cooling numbers for spacecraft radiators at emissivity ~0.9",
+  "formula": "q = epsilon * sigma * T^4",
+  "formulaVariables": {
+    "q": "radiated power (W/m²)",
+    "epsilon": "emissivity",
+    "sigma": "Stefan-Boltzmann constant (5.670374419e-8 W·m⁻²·K⁻⁴)",
+    "T": "temperature (K)"
+  },
+  "emissivity": 0.9,
+  "radiatedPowerPerM2": [
+    { "temperature_K": 800, "oneSided_W_per_m2": 20900, "bothSided_W_per_m2": 41800 },
+    { "temperature_K": 1200, "oneSided_W_per_m2": 105800, "bothSided_W_per_m2": 211600 }
+  ],
+  "areaPerMW_wasteHeat": [
+    { "temperature_K": 800, "oneSided_m2_per_MW": 47.8, "bothSided_m2_per_MW": 23.9 },
+    { "temperature_K": 1200, "oneSided_m2_per_MW": 9.45, "bothSided_m2_per_MW": 4.73 }
+  ]
+}

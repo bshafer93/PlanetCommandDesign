@@ -1,0 +1,11 @@
+{
+  "title": "Carrier-Sized Spacecraft (Radiator-Limited Power)",
+  "description": "Continuous electric power upper bounds for direct-energy fusion in space",
+  "context": "Direct-energy fusion, space environment",
+  "bounds": [
+    { "radiatorArea_m2": 20000, "temperature_K": 800, "electricPowerMin_GW": 1, "electricPowerMax_GW": 4 },
+    { "radiatorArea_m2": 20000, "temperature_K": 1200, "electricPowerMin_GW": 8, "electricPowerMax_GW": 19 },
+    { "radiatorArea_m2": 50000, "temperature_K": 1200, "electricPowerMin_GW": 20, "electricPowerMax_GW": 48 },
+    { "radiatorArea_m2": 100000, "temperature_K": 1200, "electricPowerMin_GW": 40, "electricPowerMax_GW": 95 }
+  ]
+}

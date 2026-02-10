@@ -1,0 +1,33 @@
+{
+  "title": "Direct Nuclear-to-Electric Conversion Methods (Non-Steam)",
+  "description": "Methods that bypass the steam turbine cycle",
+  "methods": [
+    {
+      "name": "Thermoelectric (RTG)",
+      "exists": true,
+      "powerScaleMin": "W",
+      "powerScaleMax": "kW"
+    },
+    {
+      "name": "Thermionic",
+      "exists": true,
+      "note": "historical",
+      "powerScaleMin": "kW",
+      "powerScaleMax": "tens of kW"
+    },
+    {
+      "name": "Direct fission charge capture",
+      "exists": false,
+      "note": "theoretical",
+      "powerScaleMin": "very low",
+      "powerScaleMax": "very low"
+    },
+    {
+      "name": "Magnetohydrodynamic (MHD)",
+      "exists": true,
+      "note": "tested",
+      "powerScaleMin": "low",
+      "powerScaleMax": "medium"
+    }
+  ]
+}

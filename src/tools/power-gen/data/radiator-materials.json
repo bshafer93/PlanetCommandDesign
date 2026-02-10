@@ -1,0 +1,26 @@
+{
+  "title": "Radiator Base Materials",
+  "description": "Base material properties relevant to spacecraft radiators",
+  "materials": [
+    {
+      "name": "Aluminum",
+      "radiativeOutputDifference": "none",
+      "properties": "Low density, lower temp strength"
+    },
+    {
+      "name": "Copper",
+      "radiativeOutputDifference": "none",
+      "properties": "High thermal conductivity, heavy"
+    },
+    {
+      "name": "Steel",
+      "radiativeOutputDifference": "none",
+      "properties": "High-temperature structural strength"
+    },
+    {
+      "name": "Surface coatings",
+      "radiativeOutputDifference": "large",
+      "properties": "Changes emissivity"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "title": "Same-Volume Generator Comparison (10 m³)",
+  "description": "Electric power output and power density for different technologies at 10 m³ volume",
+  "referenceVolume_m3": 10,
+  "technologies": [
+    {
+      "name": "Chemical engine",
+      "electricOutputMin_MW": 2,
+      "electricOutputMax_MW": 4,
+      "powerDensityMin_MWe_per_m3": 0.2,
+      "powerDensityMax_MWe_per_m3": 0.4
+    },
+    {
+      "name": "Naval fission reactor",
+      "electricOutputMin_MW": 100,
+      "electricOutputMax_MW": 200,
+      "powerDensityMin_MWe_per_m3": 10,
+      "powerDensityMax_MWe_per_m3": 20
+    },
+    {
+      "name": "D-T fusion (thermal cycle)",
+      "electricOutputMin_MW": 70,
+      "electricOutputMax_MW": 400,
+      "powerDensityMin_MWe_per_m3": 7,
+      "powerDensityMax_MWe_per_m3": 40
+    },
+    {
+      "name": "D-T fusion (direct assist)",
+      "electricOutputMin_MW": 110,
+      "electricOutputMax_MW": 550,
+      "powerDensityMin_MWe_per_m3": 11,
+      "powerDensityMax_MWe_per_m3": 55
+    },
+    {
+      "name": "Low-neutron fusion + direct electric",
+      "electricOutputMin_MW": 900,
+      "electricOutputMax_MW": 4500,
+      "powerDensityMin_MWe_per_m3": 90,
+      "powerDensityMax_MWe_per_m3": 450
+    }
+  ]
+}

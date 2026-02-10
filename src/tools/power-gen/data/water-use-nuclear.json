@@ -1,0 +1,9 @@
+{
+  "title": "Water Use in Nuclear Power Systems",
+  "description": "Water consumption and inventory for nuclear power in space",
+  "data": [
+    { "quantity": "Water consumption (closed loop)", "value": "~0 kg/day" },
+    { "quantity": "Typical onboard water inventory (100 MWe system)", "value": "1-10 metric tons" },
+    { "quantity": "Primary limiting factor in space", "value": "Heat rejection" }
+  ]
+}

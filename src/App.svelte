@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { ToolDef } from './types';
   import StructSizer from './tools/struct-sizer/StructSizer.svelte';
+  import PowerGen from './tools/power-gen/PowerGen.svelte';
 
   const tools: ToolDef[] = [
     { id: 'struct-sizer', label: 'struct_sizer', component: StructSizer },
+    { id: 'power-gen', label: 'power_gen', component: PowerGen },
   ];
 
   let activeToolId = $state(getInitialTab());

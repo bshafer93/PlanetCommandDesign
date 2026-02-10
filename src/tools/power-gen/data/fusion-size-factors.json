@@ -1,0 +1,11 @@
+{
+  "title": "Factors Affecting Fusion Reactor Size",
+  "description": "Key factors and their relative effect on fusion reactor volume",
+  "factors": [
+    { "name": "Fuel energy density", "effectMagnitude": "minimal" },
+    { "name": "Plasma density", "effectMagnitude": "moderate" },
+    { "name": "Neutron-tolerant materials", "effectMagnitude": "large" },
+    { "name": "Shielding thickness", "effectMagnitude": "very large" },
+    { "name": "Magnetic confinement", "effectMagnitude": "dominant" }
+  ]
+}
