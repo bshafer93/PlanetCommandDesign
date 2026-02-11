@@ -4,12 +4,14 @@
   import PowerGen from './tools/power-gen/PowerGen.svelte';
   import ProductionChain from './tools/production-chain/ProductionChain.svelte';
   import Calculations from './tools/calculations/Calculations.svelte';
+  import SizeComparison from './tools/size-comparison/SizeComparison.svelte';
 
   const tools: ToolDef[] = [
     { id: 'struct-sizer', label: 'struct_sizer', component: StructSizer },
     { id: 'power-gen', label: 'power_gen', component: PowerGen },
     { id: 'production-chain', label: 'production_chain', component: ProductionChain },
     { id: 'calculations', label: 'calculations', component: Calculations },
+    { id: 'size-comparison', label: 'size_comparison', component: SizeComparison },
   ];
 
   let activeToolId = $state(getInitialTab());

@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<svg xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:svg="http://www.w3.org/2000/svg" id="svg2" viewBox="0 0 744.09 1052.4" version="1.1">
+  <defs id="defs4">
+    <linearGradient id="linearGradient5654">
+      <stop id="stop5656" stop-color="#1fdd86" stop-opacity=".62281" offset="0"/>
+      <stop id="stop5658" stop-color="#0c5446" stop-opacity="0" offset="1"/>
+    </linearGradient>
+    <radialGradient id="radialGradient5728" gradientUnits="userSpaceOnUse" cy="-130.06" cx="-187.77" gradientTransform="matrix(.22444 3.0767 -2.1019 .069811 -59.501 616.79)" r="326.05">
+      <stop id="stop5758" stop-color="#041700" offset="0"/>
+      <stop id="stop5760" stop-color="#065d00" stop-opacity=".49804" offset=".9947"/>
+      <stop id="stop5762" stop-color="#061400" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient5730" gradientUnits="userSpaceOnUse" cy="196.33" cx="388.4" gradientTransform="matrix(1 0 0 6.093 0 -999.9)" r="12.344">
+      <stop id="stop5642" stop-color="#98f0df" stop-opacity=".86458" offset="0"/>
+      <stop id="stop5644" stop-color="#0c5446" stop-opacity="0" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient5732" gradientUnits="userSpaceOnUse" cy="196.33" cx="388.4" gradientTransform="matrix(1 0 0 5.8948 0 -960.97)" r="12.844">
+      <stop id="stop5580-9" stop-color="#84b35c" offset="0"/>
+      <stop id="stop5582-9" stop-color="#84b35c" stop-opacity="0" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient5736" xlink:href="#linearGradient5654" gradientUnits="userSpaceOnUse" cy="272.04" cx="226.71" gradientTransform="matrix(1 0 0 2.0786 0 -293.43)" r="90.386"/>
+    <radialGradient id="radialGradient5738" xlink:href="#linearGradient5654" gradientUnits="userSpaceOnUse" cy="271.88" cx="510.94" gradientTransform="matrix(1 0 0 2.0786 0 -293.25)" r="90.386"/>
+    <radialGradient id="radialGradient5748" gradientUnits="userSpaceOnUse" cy="138.8" cx="372.48" gradientTransform="matrix(1 0 0 .41610 0 81.046)" r="8.8565">
+      <stop id="stop5742" stop-color="#060a00" offset="0"/>
+      <stop id="stop5744" stop-color="#2b3934" offset="1"/>
+    </radialGradient>
+  </defs>
+  <g id="layer1">
+    <g id="g5721" transform="matrix(.96425 0 0 1 4.9771 -26.653)">
+      <path id="path5383" fill-rule="evenodd" fill="url(#radialGradient5728)" transform="matrix(.70234 .71184 -.71184 .70234 260.56 76.152)" d="m28.663-54.1c-25.925 0.18 135.04 597.06 125.45 572.98-10.48-26.3 87.1-337.49 86.92-363.41s-208.88-243.56-190.68-262.02c18.206-18.46 238.72 187.2 264.65 187.02 25.924-0.18003 328.06-94.309 362.12-91.919 25.861 1.815-574.67-143.57-574.49-117.65 0.18003 25.924 326.13 359.24 307.92 377.7-18.2 18.46-355.96-302.88-381.89-302.7z"/>
+      <path id="path5389" d="m400.75 196.33c0 41.538-5.5266 75.212-12.344 75.212s-12.344-33.673-12.344-75.212c0-41.538 5.5266-75.212 12.344-75.212s12.344 33.673 12.344 75.212z" fill-rule="evenodd" transform="translate(-16.076 -29.855)" stroke="url(#radialGradient5732)" stroke-width="5.4" fill="url(#radialGradient5730)"/>
+      <rect id="rect5391" fill-rule="evenodd" ry="1.4353" height="6.6648" width="17.008" y="135.47" x="363.98" fill="url(#radialGradient5748)"/>
+      <path id="path5568" fill="url(#radialGradient5736)" d="m317.1 223.34-13.69-139.17-40.69 210.34-23.78-104.42-40.89 189.05-31.17-92.14-30.56 172.92"/>
+      <path id="path5568-8" fill="url(#radialGradient5738)" d="m420.56 223.18 13.689-139.18 40.69 210.34 23.773-104.42 40.893 189.05 31.166-92.133 30.56 172.91"/>
+    </g>
+  </g>
+  <metadata>
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+        <cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/>
+        <dc:publisher>
+          <cc:Agent rdf:about="http://openclipart.org/">
+            <dc:title>Openclipart</dc:title>
+          </cc:Agent>
+        </dc:publisher>
+        <dc:title>Starfighter</dc:title>
+        <dc:date>2012-05-12T15:23:02</dc:date>
+        <dc:description>A small starfighter</dc:description>
+        <dc:source>http://openclipart.org/detail/170000/starfighter-by-mairor</dc:source>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>mairor</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:subject>
+          <rdf:Bag>
+            <rdf:li>clip art</rdf:li>
+            <rdf:li>clipart</rdf:li>
+            <rdf:li>combat</rdf:li>
+            <rdf:li>cosmic</rdf:li>
+            <rdf:li>fighter</rdf:li>
+            <rdf:li>military</rdf:li>
+            <rdf:li>rocket</rdf:li>
+            <rdf:li>starfighter</rdf:li>
+            <rdf:li>starship</rdf:li>
+          </rdf:Bag>
+        </dc:subject>
+      </cc:Work>
+      <cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/">
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+</svg>
