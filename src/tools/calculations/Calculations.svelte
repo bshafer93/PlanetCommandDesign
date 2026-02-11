@@ -1,7 +1,22 @@
 <script lang="ts">
   import { Chart, registerables } from 'chart.js';
+  import Plotly from 'plotly.js-gl3d-dist-min';
   import SliderInput from '../../components/SliderInput.svelte';
+  import materialsDB from './data/materials-database.json';
   Chart.register(...registerables);
+
+  // ── Materials database: filtered lists ────────────
+  const projCategories = new Set(['metal', 'metalloid', 'alloy', 'ceramic', 'carbon', 'composite']);
+  const projectileMaterials = materialsDB.materials.filter(
+    m => projCategories.has(m.category) && m.density_kgm3 != null
+  );
+  const targetMaterials = materialsDB.materials.filter(
+    m => projCategories.has(m.category)
+      && m.density_kgm3 != null
+      && (m as any).specificHeat_JkgK != null
+      && (m as any).meltingPoint_K != null
+      && (m as any).latentHeatFusion_Jkg != null
+  );
 
   type SubTab = 'projectile' | 'laser' | 'particle';
   let activeSubTab: SubTab = $state('projectile');
@@ -15,16 +30,8 @@
   let dimY = $state(0.1);
   let dimZ = $state(0.1);
 
-  // ── Materials with density (kg/m³) ─────────────────
-  const materials: { name: string; density: number }[] = [
-    { name: 'Steel', density: 7850 },
-    { name: 'Lead', density: 11340 },
-    { name: 'Tungsten', density: 19250 },
-    { name: 'Uranium', density: 19100 },
-    { name: 'Copper', density: 8960 },
-    { name: 'Nickel', density: 8908 },
-  ];
-  let materialIndex = $state(0);
+  // ── Projectile material (from DB) ──────────────────
+  let projMaterialIndex = $state(projectileMaterials.findIndex(m => m.name === 'Steel, AISI 4130') ?? 0);
 
   // ── Speed ──────────────────────────────────────────
   let speed = $state(1000);
@@ -44,7 +51,7 @@
     }
   });
 
-  let density = $derived(materials[materialIndex].density);
+  let density = $derived(projectileMaterials[projMaterialIndex].density_kgm3);
   let mass = $derived(volume * density);
 
   let speedMs = $derived((speedUnit as string) === 'km/s' ? speed * 1000 : speed);
@@ -127,29 +134,29 @@
   // Power density at target
   let absorbedPowerDensity = $derived(laserAbsorption * (laserPower * 1e6) / spotArea); // W/m²
 
-  // Steel thermal properties
-  const STEEL = {
-    density: 7850,           // kg/m³
-    specificHeat: 500,       // J/(kg·K)
-    meltingTemp: 1773,       // K
-    ambientTemp: 300,        // K
-    latentHeatFusion: 270000, // J/kg
-  };
-  const steelEnergyPerVolume = STEEL.density * (
-    STEEL.specificHeat * (STEEL.meltingTemp - STEEL.ambientTemp) + STEEL.latentHeatFusion
+  // ── Target material (shared by laser + particle beam) ──
+  const defaultTargetIdx = targetMaterials.findIndex(m => m.name === 'Steel, AISI 4130');
+  let targetMaterialIndex = $state(defaultTargetIdx >= 0 ? defaultTargetIdx : 0);
+  let plateThickness = $state(30); // cm
+
+  let targetMaterial = $derived(targetMaterials[targetMaterialIndex]);
+  let energyPerVolume = $derived(
+    targetMaterial.density_kgm3 * (
+      (targetMaterial as any).specificHeat_JkgK * ((targetMaterial as any).meltingPoint_K - 300)
+      + (targetMaterial as any).latentHeatFusion_Jkg
+    )
   ); // J/m³
+  let maxPlate = $derived(plateThickness / 100); // cm → m
 
   // Penetration depth (m) = absorbed_power_density × time / energy_per_volume
-  function calcPen(apd: number, t: number): number {
-    return apd * t / steelEnergyPerVolume;
+  function calcPen(apd: number, t: number, epv: number): number {
+    return apd * t / epv;
   }
-
-  const maxPlate = 0.3; // meters
   const durations = [1, 5, 10, 30];
   const durColors = [LC.accent, LC.green, LC.orange, LC.red];
   const durLabels = ['1 s', '5 s', '10 s', '30 s'];
 
-  let penDepths = $derived(durations.map(t => calcPen(absorbedPowerDensity, t)));
+  let penDepths = $derived(durations.map(t => calcPen(absorbedPowerDensity, t, energyPerVolume)));
   let penPcts = $derived(penDepths.map(d => Math.min(d / maxPlate * 100, 100)));
 
   function formatDepth(m: number): string {
@@ -207,12 +214,12 @@
   }
 
   // Penetration for arbitrary power/range (independent of slider state)
-  function calcPenStandalone(powerMW: number, rangeKm: number, apertCm: number, wavNm: number): number {
+  function calcPenStandalone(powerMW: number, rangeKm: number, apertCm: number, wavNm: number, epv: number): number {
     const abs = getAbsorption(wavNm);
     const spotD = 2.44 * (wavNm * 1e-9) * (rangeKm * 1000) / (apertCm / 100);
     const spotA = Math.PI * (spotD / 2) ** 2;
     const apd = abs * (powerMW * 1e6) / spotA;
-    return apd / steelEnergyPerVolume; // 1-second impulse
+    return apd / epv; // 1-second impulse
   }
 
   // ── Charts ─────────────────────────────────────────
@@ -222,6 +229,9 @@
   $effect(() => {
     if (!laserCanvas || activeSubTab !== 'laser') return;
     const apd = absorbedPowerDensity;
+    const epv = energyPerVolume;
+    const mp = maxPlate;
+    const matName = targetMaterial.name;
     const numPoints = 200;
     const maxTime = 30;
     const times: number[] = [];
@@ -229,7 +239,7 @@
     for (let i = 0; i <= numPoints; i++) {
       const t = (i / numPoints) * maxTime;
       times.push(t);
-      depths.push(Math.min(calcPen(apd, t), maxPlate));
+      depths.push(Math.min(calcPen(apd, t, epv), mp));
     }
     const chart = new Chart(laserCanvas, {
       type: 'line',
@@ -246,8 +256,8 @@
             pointRadius: 0,
           },
           {
-            label: 'Plate Thickness (300mm)',
-            data: times.map(() => maxPlate * 1000),
+            label: `Plate Thickness (${(mp * 1000).toFixed(0)}mm)`,
+            data: times.map(() => mp * 1000),
             borderColor: LC.red + '88',
             borderDash: [6, 4],
             pointRadius: 0,
@@ -278,13 +288,13 @@
             ticks: { color: LC.textDim, font: { size: 10 } },
             grid: { color: LC.border },
             min: 0,
-            max: Math.max(maxPlate * 1000, depths[depths.length - 1] * 1000 * 1.1),
+            max: Math.max(mp * 1000, depths[depths.length - 1] * 1000 * 1.1),
           },
         },
         plugins: {
           title: {
             display: true,
-            text: 'Steel Penetration vs Exposure Time',
+            text: `${matName} Penetration vs Exposure Time`,
             color: LC.text,
             font: { ...chartFont, size: 13, weight: 600 as const },
           },
@@ -326,6 +336,7 @@
     const wav = laserWavelength;
     const curRange = laserRange;
     const curPower = laserPower;
+    const epv = energyPerVolume;
 
     const logRMin = 0, logRMax = 3;   // log10(1 km) → log10(1000 km)
     const logPMin = -1, logPMax = 5;  // log10(0.1 MW) → log10(100 GW)
@@ -349,7 +360,7 @@
       for (let col = 0; col < gridW; col++) {
         const tX = col / (gridW - 1);
         const rKm = Math.pow(10, logRMin + tX * (logRMax - logRMin));
-        const pen = calcPenStandalone(pMW, rKm, apert, wav);
+        const pen = calcPenStandalone(pMW, rKm, apert, wav, epv);
         const [r, g, b] = penToColor(pen);
         const idx = (row * gridW + col) * 4;
         px[idx] = r; px[idx+1] = g; px[idx+2] = b; px[idx+3] = 255;
@@ -382,7 +393,7 @@
     ctx.stroke();
 
     // Label at crosshair
-    const curPen = calcPenStandalone(curPower, curRange, apert, wav);
+    const curPen = calcPenStandalone(curPower, curRange, apert, wav, epv);
     const penLabel = formatDepth(curPen);
     ctx.font = 'bold 11px JetBrains Mono, monospace';
     const onRight = xCH < pX + pW / 2;
@@ -477,14 +488,17 @@
   // ── Particle Beam Calculator ──────────────────────────
   // ══════════════════════════════════════════════════════
 
+  type ParticleSubTab = 'combat' | 'accelerator';
+  let particleSubTab: ParticleSubTab = $state('combat');
+
   let beamType = $state<'neutral' | 'charged'>('neutral');
-  let pbDivergence = $state(10);       // μrad (half-angle)
+  let pbDivergence = $state(0.5);      // μrad (half-angle) — 5×10⁻⁷ rad default
   let pbEnergy = $state(100);          // MeV (particle kinetic energy)
   let pbPower = $state(1);             // MW
   let pbRange = $state(1);             // km
 
   const PB_DEPOSITION = 0.60;          // 60% deposition efficiency
-  const PB_R0 = 0.002;                 // 2 mm initial beam radius
+  let pbR0 = $state(2);               // mm — initial beam radius
   const PROTON_REST_MASS_MEV = 938.272;
   const ALFVEN_CURRENT_PROTON = 3.13e7; // ~31.3 MA
 
@@ -499,22 +513,24 @@
       : 0
   );
 
-  function pbSpotRadiusAt(z_m: number, theta_rad: number, K: number): number {
-    if (K === 0) return PB_R0 + theta_rad * z_m;
-    return PB_R0 + theta_rad * z_m + (K / (2 * PB_R0)) * z_m * z_m;
+  let pbR0m = $derived(pbR0 / 1000); // convert mm → m
+
+  function pbSpotRadiusAt(z_m: number, theta_rad: number, K: number, r0: number): number {
+    if (K === 0) return r0 + theta_rad * z_m;
+    return r0 + theta_rad * z_m + (K / (2 * r0)) * z_m * z_m;
   }
 
   let pbRangeM = $derived(pbRange * 1000);
   let pbTheta = $derived(pbDivergence * 1e-6);
-  let pbSpotRadius = $derived(pbSpotRadiusAt(pbRangeM, pbTheta, pbPerveance));
+  let pbSpotRadius = $derived(pbSpotRadiusAt(pbRangeM, pbTheta, pbPerveance, pbR0m));
   let pbSpotDiameter = $derived(2 * pbSpotRadius);
   let pbSpotArea = $derived(Math.PI * pbSpotRadius * pbSpotRadius);
   let pbAbsorbedPowerDensity = $derived(PB_DEPOSITION * (pbPower * 1e6) / pbSpotArea);
 
-  let pbPenDepths = $derived(durations.map(t => calcPen(pbAbsorbedPowerDensity, t)));
+  let pbPenDepths = $derived(durations.map(t => calcPen(pbAbsorbedPowerDensity, t, energyPerVolume)));
   let pbPenPcts = $derived(pbPenDepths.map(d => Math.min(d / maxPlate * 100, 100)));
 
-  function calcPenPBStandalone(powerMW: number, rangeKm: number, divUrad: number, energyMeV: number, type: 'neutral' | 'charged'): number {
+  function calcPenPBStandalone(powerMW: number, rangeKm: number, divUrad: number, energyMeV: number, type: 'neutral' | 'charged', r0_m: number, epv: number): number {
     const z = rangeKm * 1000;
     const theta = divUrad * 1e-6;
     let K = 0;
@@ -525,10 +541,25 @@
       const current = (powerMW * 1e6) / (energyMeV * 1e6);
       K = (2 * current) / (ALFVEN_CURRENT_PROTON * Math.pow(bg, 3));
     }
-    const spotR = pbSpotRadiusAt(z, theta, K);
+    const spotR = pbSpotRadiusAt(z, theta, K, r0_m);
     const area = Math.PI * spotR * spotR;
     const apd = PB_DEPOSITION * (powerMW * 1e6) / area;
-    return apd / steelEnergyPerVolume;
+    return apd / epv;
+  }
+
+  // Spot radius at range (standalone, for heatmap/3D)
+  function pbSpotRadiusAtStandalone(rangeKm: number, divUrad: number, energyMeV: number, powerMW: number, type: 'neutral' | 'charged', r0_m: number): number {
+    const z = rangeKm * 1000;
+    const theta = divUrad * 1e-6;
+    let K = 0;
+    if (type === 'charged') {
+      const gamma = 1 + energyMeV / PROTON_REST_MASS_MEV;
+      const beta = Math.sqrt(1 - 1 / (gamma * gamma));
+      const bg = beta * gamma;
+      const current = (powerMW * 1e6) / (energyMeV * 1e6);
+      K = (2 * current) / (ALFVEN_CURRENT_PROTON * Math.pow(bg, 3));
+    }
+    return pbSpotRadiusAt(z, theta, K, r0_m);
   }
 
   function formatCurrent(a: number): string {
@@ -543,6 +574,130 @@
     return urad.toFixed(1) + ' μrad';
   }
 
+  // ── Feasibility checks (physics limits) ───────────
+  // Implied geometric emittance: ε = r₀ · θ
+  let pbImpliedEmittance = $derived(pbR0m * pbTheta); // m·rad
+  // Normalized emittance: εₙ = βγ · ε
+  let pbNormEmittance = $derived(pbBetaGamma * pbImpliedEmittance); // m·rad
+
+  // State-of-art emittance thresholds (proton beams)
+  const EMITTANCE_BEST = 5e-8;   // 0.05 μm·rad — theoretical best
+  const EMITTANCE_SOTA = 2e-7;   // 0.2 μm·rad — high-brightness injector
+  const EMITTANCE_TYPICAL = 1e-6; // 1 μm·rad — typical RF ion source
+
+  type FeasibilityLevel = 'ok' | 'warning' | 'error';
+  interface FeasibilityCheck {
+    level: FeasibilityLevel;
+    label: string;
+    detail: string;
+  }
+
+  let pbFeasibility = $derived.by((): FeasibilityCheck[] => {
+    const checks: FeasibilityCheck[] = [];
+    const eps_n = pbNormEmittance;
+    const theta = pbTheta;
+    const rangeM = pbRangeM;
+    const spotR = pbSpotRadius;
+
+    // 1) Emittance feasibility — is the implied εₙ achievable?
+    if (eps_n < EMITTANCE_BEST) {
+      checks.push({
+        level: 'error',
+        label: 'Emittance: beyond theoretical limits',
+        detail: `Required εₙ = ${(eps_n * 1e6).toExponential(1)} μm·rad — below best theoretical (0.05 μm·rad). This divergence is not physically achievable.`,
+      });
+    } else if (eps_n < EMITTANCE_SOTA) {
+      checks.push({
+        level: 'warning',
+        label: 'Emittance: requires cutting-edge source',
+        detail: `Required εₙ = ${(eps_n * 1e6).toFixed(3)} μm·rad — needs a high-brightness injector (state-of-art ~0.2 μm·rad).`,
+      });
+    } else if (eps_n < EMITTANCE_TYPICAL) {
+      checks.push({
+        level: 'ok',
+        label: 'Emittance: achievable with good source',
+        detail: `Required εₙ = ${(eps_n * 1e6).toFixed(3)} μm·rad — within reach of modern RF ion sources (~1 μm·rad).`,
+      });
+    }
+
+    // 2) Max range check: L_max = r_spot · r₀ / ε
+    // For a "useful" spot (e.g. 5cm radius = 10cm diameter), what's the max range?
+    const usefulSpotR = 0.05; // 5cm — reasonable weapon spot
+    const maxRange = usefulSpotR * pbR0m / pbImpliedEmittance;
+    if (rangeM > maxRange * 1.5) {
+      checks.push({
+        level: 'error',
+        label: 'Range: exceeds physics limit',
+        detail: `Max range for a 10cm spot = ${formatRangeLabel(maxRange / 1000)}. At ${formatRangeLabel(pbRange)} the beam cannot be focused — no amount of power fixes this.`,
+      });
+    } else if (rangeM > maxRange * 0.8) {
+      checks.push({
+        level: 'warning',
+        label: 'Range: near feasibility limit',
+        detail: `Max range for a 10cm spot ≈ ${formatRangeLabel(maxRange / 1000)}. Current range is close to the hard emittance limit.`,
+      });
+    }
+
+    // 3) Spot size check — is the beam too spread to be useful?
+    if (spotR > 1.0) {
+      checks.push({
+        level: 'error',
+        label: 'Spot: beam fully dispersed',
+        detail: `Spot diameter = ${(spotR * 2).toFixed(1)} m — beam is too spread to concentrate energy on a target.`,
+      });
+    } else if (spotR > 0.1) {
+      checks.push({
+        level: 'warning',
+        label: 'Spot: beam significantly spread',
+        detail: `Spot diameter = ${(spotR * 2 * 100).toFixed(0)} cm — energy density is very low at this spread.`,
+      });
+    }
+
+    // 4) Space charge severity (charged beams only)
+    if (beamType === 'charged') {
+      const K = pbPerveance;
+      if (K > 1e-2) {
+        checks.push({
+          level: 'error',
+          label: 'Space charge: catastrophic',
+          detail: `Perveance K = ${K.toExponential(1)} — beam blows apart rapidly. Neutralize or increase particle energy.`,
+        });
+      } else if (K > 1e-4) {
+        checks.push({
+          level: 'warning',
+          label: 'Space charge: severe',
+          detail: `Perveance K = ${K.toExponential(1)} — dominates beam expansion. Consider higher particle energy or lower current.`,
+        });
+      } else if (K > 1e-6) {
+        checks.push({
+          level: 'ok',
+          label: 'Space charge: moderate',
+          detail: `Perveance K = ${K.toExponential(1)} — noticeable but partially manageable.`,
+        });
+      }
+    }
+
+    // 5) Geometric divergence vs desired spot: θ ≤ r/L
+    // Check if the divergence alone (ignoring space charge) gives a reasonable spot
+    const geoSpotR = pbR0m + theta * rangeM;
+    const geoMaxTheta = usefulSpotR / rangeM;
+    if (theta > geoMaxTheta * 2) {
+      checks.push({
+        level: 'error',
+        label: 'Divergence: too high for this range',
+        detail: `Need θ ≤ ${(geoMaxTheta * 1e6).toFixed(1)} μrad for 10cm spot at ${formatRangeLabel(pbRange)}. Current: ${formatDivergence(pbDivergence)}.`,
+      });
+    } else if (theta > geoMaxTheta) {
+      checks.push({
+        level: 'warning',
+        label: 'Divergence: marginal for this range',
+        detail: `For a 10cm spot at ${formatRangeLabel(pbRange)}, need θ ≤ ${(geoMaxTheta * 1e6).toFixed(1)} μrad. Current: ${formatDivergence(pbDivergence)}.`,
+      });
+    }
+
+    return checks;
+  });
+
   function formatParticleEnergy(mev: number): string {
     if (mev >= 1000) return (mev / 1000).toFixed(1) + ' GeV';
     return mev.toFixed(0) + ' MeV';
@@ -553,15 +708,93 @@
     return km.toFixed(km < 10 ? 1 : 0) + ' km';
   }
 
+  // ══════════════════════════════════════════════════════
+  // ── Accelerator Design Sub-Tab ──────────────────────
+  // ══════════════════════════════════════════════════════
+
+  let accLength = $state(10);         // m — accelerator length
+  let accPowerIn = $state(10);        // MW — electrical power input
+  let accExitDiam = $state(0.4);      // cm — beam diameter at exit
+  let accGradient = $state(20);       // MV/m — accelerating gradient
+  let accTargetSpotR = $state(0.25);  // cm — target spot radius
+  let accBeamType = $state<'neutral' | 'charged'>('neutral');
+
+  // Fixed constants
+  const ACC_EFFICIENCY = 0.30;        // 30% wall-plug to beam
+  const ACC_DIVERGENCE = 5e-7;        // 0.5 μrad — fixed beam divergence
+  const ACC_DIVERGENCE_URAD = ACC_DIVERGENCE * 1e6;
+
+  // Derived accelerator values
+  let accParticleKE = $derived(accGradient * accLength); // MeV
+  let accGamma = $derived(1 + accParticleKE / PROTON_REST_MASS_MEV);
+  let accBeta = $derived(Math.sqrt(1 - 1 / (accGamma * accGamma)));
+  let accBetaGamma = $derived(accBeta * accGamma);
+  let accBeamPower = $derived(ACC_EFFICIENCY * accPowerIn); // MW
+  let accR0 = $derived(accExitDiam / 2 / 100); // cm → m (radius)
+  // Emittance derived from fixed divergence: ε = θ · r₀, εₙ = βγ · ε
+  let accGeomEmittance = $derived(ACC_DIVERGENCE * accR0); // m·rad
+  let accNormEmittance = $derived(accBetaGamma * accGeomEmittance * 1e6); // μm·rad
+  let accCurrent = $derived((accBeamPower * 1e6) / (accParticleKE * 1e6)); // A
+  let accPerveance = $derived(
+    accBeamType === 'charged'
+      ? (2 * accCurrent) / (ALFVEN_CURRENT_PROTON * Math.pow(accBetaGamma, 3))
+      : 0
+  );
+
+  // Target requirement: 33 kJ absorbed in 0.5 s
+  let accTargetR = $derived(accTargetSpotR / 100); // cm → m
+  const ACC_TARGET_ENERGY = 33000;    // 33 kJ in joules
+  const ACC_TARGET_TIME = 0.5;        // seconds
+  const ACC_TARGET_POWER = ACC_TARGET_ENERGY / ACC_TARGET_TIME; // 66 kW
+
+  function formatCm(cm: number): string {
+    if (cm >= 1) return cm.toFixed(1) + ' cm';
+    return (cm * 10).toFixed(1) + ' mm';
+  }
+
+  // Spot radius at range for accelerator tab
+  function accSpotRadius(z_m: number): number {
+    return pbSpotRadiusAt(z_m, ACC_DIVERGENCE, accPerveance, accR0);
+  }
+
+  // Power absorbed by target at range (W)
+  function accAbsorbedOnTarget(z_m: number): number {
+    const spotR = accSpotRadius(z_m);
+    const tR = accTargetR;
+    const fraction = Math.min(1, (tR / spotR) ** 2);
+    return PB_DEPOSITION * (accBeamPower * 1e6) * fraction;
+  }
+
+  // Max effective range via binary search
+  let accMaxRange = $derived.by(() => {
+    // First check if the beam can even meet the requirement at point-blank
+    if (accAbsorbedOnTarget(0.01) * ACC_TARGET_TIME < ACC_TARGET_ENERGY) return 0;
+    let lo = 0.01, hi = 1e7; // 0.01m to 10,000 km
+    for (let i = 0; i < 80; i++) {
+      const mid = Math.sqrt(lo * hi); // geometric midpoint for log search
+      if (accAbsorbedOnTarget(mid) * ACC_TARGET_TIME >= ACC_TARGET_ENERGY) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo; // meters
+  });
+
   // ── Particle beam charts ──────────────────────────────
   let pbChartCanvas = $state<HTMLCanvasElement>();
   let pbHeatmapCanvas = $state<HTMLCanvasElement>();
+  let pb3dDiv = $state<HTMLDivElement>();
+  let accChartCanvas = $state<HTMLCanvasElement>();
 
   // Time vs depth chart
   $effect(() => {
     if (!pbChartCanvas || activeSubTab !== 'particle') return;
     const apd = pbAbsorbedPowerDensity;
     const bt = beamType;
+    const epv = energyPerVolume;
+    const mp = maxPlate;
+    const matName = targetMaterial.name;
     const numPoints = 200;
     const maxTime = 30;
     const times: number[] = [];
@@ -569,7 +802,7 @@
     for (let i = 0; i <= numPoints; i++) {
       const t = (i / numPoints) * maxTime;
       times.push(t);
-      depths.push(Math.min(calcPen(apd, t), maxPlate));
+      depths.push(Math.min(calcPen(apd, t, epv), mp));
     }
     const chart = new Chart(pbChartCanvas, {
       type: 'line',
@@ -586,8 +819,8 @@
             pointRadius: 0,
           },
           {
-            label: 'Plate Thickness (300mm)',
-            data: times.map(() => maxPlate * 1000),
+            label: `Plate Thickness (${(mp * 1000).toFixed(0)}mm)`,
+            data: times.map(() => mp * 1000),
             borderColor: LC.red + '88',
             borderDash: [6, 4],
             pointRadius: 0,
@@ -618,13 +851,13 @@
             ticks: { color: LC.textDim, font: { size: 10 } },
             grid: { color: LC.border },
             min: 0,
-            max: Math.max(maxPlate * 1000, depths[depths.length - 1] * 1000 * 1.1),
+            max: Math.max(mp * 1000, depths[depths.length - 1] * 1000 * 1.1),
           },
         },
         plugins: {
           title: {
             display: true,
-            text: `Steel Penetration vs Exposure Time (${bt === 'charged' ? 'Charged' : 'Neutral'} Beam)`,
+            text: `${matName} Penetration vs Exposure Time (${bt === 'charged' ? 'Charged' : 'Neutral'} Beam)`,
             color: LC.text,
             font: { ...chartFont, size: 13, weight: 600 as const },
           },
@@ -667,6 +900,8 @@
     const bt = beamType;
     const curRange = pbRange;
     const curPower = pbPower;
+    const r0 = pbR0m;
+    const epv = energyPerVolume;
 
     // 0.001 km (1 m) → 100 km; 0.01 MW (10 kW) → 100 GW
     const logRMin = -3, logRMax = 2;
@@ -683,8 +918,8 @@
     const imgData = tmpCtx.createImageData(gridW, gridH);
     const px = imgData.data;
 
-    // Penetration below 10μm/s (0.01mm) = blacked out (ineffective)
-    const PB_BLACKOUT_MM = 0.01;
+    // Penetration below 1mm/s = blacked out (ineffective)
+    const PB_BLACKOUT_MM = 1.0;
 
     for (let row = 0; row < gridH; row++) {
       const tY = row / (gridH - 1);
@@ -692,7 +927,7 @@
       for (let col = 0; col < gridW; col++) {
         const tX = col / (gridW - 1);
         const rKm = Math.pow(10, logRMin + tX * (logRMax - logRMin));
-        const pen = calcPenPBStandalone(pMW, rKm, div, eng, bt);
+        const pen = calcPenPBStandalone(pMW, rKm, div, eng, bt, r0, epv);
         const idx = (row * gridW + col) * 4;
         if (pen * 1000 < PB_BLACKOUT_MM) {
           px[idx] = 10; px[idx+1] = 12; px[idx+2] = 18; px[idx+3] = 255;
@@ -727,7 +962,7 @@
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    const curPen = calcPenPBStandalone(curPower, curRange, div, eng, bt);
+    const curPen = calcPenPBStandalone(curPower, curRange, div, eng, bt, r0, epv);
     const penLabel = curPen * 1000 < PB_BLACKOUT_MM ? 'INEFFECTIVE' : formatDepth(curPen);
     ctx.font = 'bold 11px JetBrains Mono, monospace';
     const onRight = xCH < pX + pW / 2;
@@ -794,40 +1029,377 @@
     ctx.textBaseline = 'bottom';
     ctx.fillText(`Range vs Power \u2014 1s Impulse (${titleDetail})`, W / 2, pY - 8);
 
-    // Color legend bar (extended to show blackout zone)
+    // Color legend bar — 1mm to 300mm only, small black key below
     const legX = pX + pW + 14, legW = 12;
-    const logDMin = -3, logDMax = Math.log10(300);
+    const logDMin = 0, logDMax = Math.log10(300); // 1mm → 300mm
 
     for (let i = 0; i < pH; i++) {
       const t = i / pH;
       const mm = Math.pow(10, logDMax - t * (logDMax - logDMin));
-      if (mm < PB_BLACKOUT_MM) {
-        ctx.fillStyle = 'rgb(10, 12, 18)';
-      } else {
-        const [r, g, b] = penToColor(mm / 1000);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-      }
+      const [r, g, b] = penToColor(mm / 1000);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.fillRect(legX, pY + i, legW, 1.5);
     }
     ctx.strokeStyle = LC.border;
     ctx.strokeRect(legX, pY, legW, pH);
 
+    // Black key below the gradient
+    const keyY = pY + pH + 6;
+    ctx.fillStyle = 'rgb(10, 12, 18)';
+    ctx.fillRect(legX, keyY, legW, legW);
+    ctx.strokeStyle = LC.border;
+    ctx.strokeRect(legX, keyY, legW, legW);
     ctx.fillStyle = LC.textDim;
     ctx.font = '9px JetBrains Mono, monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    ctx.fillText('Ineffective', legX + legW + 3, keyY + legW / 2);
+
+    // Legend tick labels
     for (const { mm, text } of [
       { mm: 300, text: '30cm' }, { mm: 50, text: '5cm' },
-      { mm: 1, text: '1mm' }, { mm: 0.01, text: '~0' },
-      { mm: 0.003, text: 'none' },
+      { mm: 1, text: '1mm' },
     ]) {
-      const y = mm <= 0.001
-        ? pY + pH
-        : pY + ((logDMax - Math.log10(mm)) / (logDMax - logDMin)) * pH;
+      const y = pY + ((logDMax - Math.log10(mm)) / (logDMax - logDMin)) * pH;
       ctx.fillText(text, legX + legW + 3, y);
     }
 
     return () => {};
+  });
+
+  // ── 3D Surface Plot: Range × Time → Depth (color = time) ──
+  $effect(() => {
+    if (!pb3dDiv || activeSubTab !== 'particle') return;
+
+    const div = pbDivergence;
+    const eng = pbEnergy;
+    const bt = beamType;
+    const pwr = pbPower;
+    const r0 = pbR0m;
+    const epv = energyPerVolume;
+    const mp = maxPlate;
+    const mpMM = mp * 1000;
+
+    const NR = 60, NT = 60;
+    // Range: 1m (0.001 km) → 100 km, log-spaced
+    const logRMin = -3, logRMax = 2;
+    // Time: 0.01s → 30s, log-spaced
+    const logTMin = Math.log10(0.01), logTMax = Math.log10(30);
+
+    const rangeVals: number[] = [];
+    const timeVals: number[] = [];
+    for (let i = 0; i < NR; i++) {
+      rangeVals.push(Math.pow(10, logRMin + (i / (NR - 1)) * (logRMax - logRMin)));
+    }
+    for (let i = 0; i < NT; i++) {
+      timeVals.push(Math.pow(10, logTMin + (i / (NT - 1)) * (logTMax - logTMin)));
+    }
+
+    // Z = penetration depth (mm, capped at plate thickness)
+    // Color = time value; -1 sentinel for ineffective (< 1mm)
+    const PB_BLACKOUT_MM = 1.0;
+    const zData: number[][] = [];
+    const colorData: number[][] = [];
+    const hoverText: string[][] = [];
+
+    // Precompute penetration rate per second and spot diameter at each range
+    const ratePerSec: number[] = rangeVals.map(rKm =>
+      calcPenPBStandalone(pwr, rKm, div, eng, bt, r0, epv)
+    );
+    const spotDiamAtRange: number[] = rangeVals.map(rKm =>
+      2 * pbSpotRadiusAtStandalone(rKm, div, eng, pwr, bt, r0)
+    );
+
+    for (let ti = 0; ti < NT; ti++) {
+      const zRow: number[] = [];
+      const cRow: number[] = [];
+      const hRow: string[] = [];
+      const t = timeVals[ti];
+      for (let ri = 0; ri < NR; ri++) {
+        const rKm = rangeVals[ri];
+        const depthM = Math.min(ratePerSec[ri] * t, mp);
+        const depthMM = depthM * 1000;
+
+        zRow.push(depthMM);
+        cRow.push(depthMM < PB_BLACKOUT_MM ? -1 : t);
+
+        const rangeLabel = rKm < 1 ? (rKm * 1000).toFixed(0) + ' m' : rKm.toFixed(rKm < 10 ? 1 : 0) + ' km';
+        const timeLabel = t < 1 ? (t * 1000).toFixed(0) + ' ms' : t.toFixed(1) + ' s';
+        const depthLabel = depthMM < PB_BLACKOUT_MM ? 'negligible' : depthMM.toFixed(1) + ' mm';
+        const sd = spotDiamAtRange[ri];
+        const spotLabel = sd >= 1 ? sd.toFixed(1) + ' m' : sd >= 0.01 ? (sd * 100).toFixed(1) + ' cm' : (sd * 1000).toFixed(2) + ' mm';
+        hRow.push(`Range: ${rangeLabel}<br>Time: ${timeLabel}<br>Depth: ${depthLabel}<br>Beam ⌀: ${spotLabel}`);
+      }
+      zData.push(zRow);
+      colorData.push(cRow);
+      hoverText.push(hRow);
+    }
+
+    // Colorscale: -1=black(ineffective), 0→30 = white→blue
+    // Map onto cmin=-1, cmax=30; -1/31→0 = black, then 0→30 = white→blue
+    const colorscale: [number, string][] = [
+      [0,    '#0a0c12'],   // -1: ineffective / black
+      [0.02, '#0a0c12'],   // still black near sentinel
+      [0.035,'#e2e8f0'],   // ~0s: white
+      [0.20, '#a7f3d0'],   // ~5s: light green
+      [0.50, '#68d391'],   // ~14s: green
+      [0.75, '#4facdb'],   // ~22s: teal-blue
+      [1.0,  '#2b6cb0'],   // 30s: solid blue
+    ];
+
+    const beamLabel = bt === 'charged' ? 'Charged' : 'Neutral';
+    const titleDetail = bt === 'charged'
+      ? `${beamLabel}, ${formatPowerCompact(pwr)}, ${formatDivergence(div)}, ${formatParticleEnergy(eng)}`
+      : `${beamLabel}, ${formatPowerCompact(pwr)}, ${formatDivergence(div)}`;
+
+    const trace: Partial<Plotly.PlotData> & { type: string } = {
+      type: 'surface',
+      x: rangeVals,
+      y: timeVals,
+      z: zData,
+      surfacecolor: colorData,
+      colorscale,
+      cmin: -1,
+      cmax: 30,
+      colorbar: {
+        title: { text: 'Time (s)', font: { color: '#e2e8f0', size: 11, family: 'JetBrains Mono, monospace' } },
+        tickvals: [0, 5, 10, 15, 20, 25, 30],
+        ticktext: ['0s', '5s', '10s', '15s', '20s', '25s', '30s'],
+        tickfont: { color: '#8492a6', size: 10, family: 'JetBrains Mono, monospace' },
+        len: 0.75,
+        thickness: 15,
+        outlinecolor: '#2a3142',
+        bgcolor: '#0e1117',
+      },
+      hoverinfo: 'text',
+      text: hoverText,
+      contours: {
+        z: { show: true, usecolormap: false, color: '#2a3142', width: 1 },
+      },
+    } as any;
+
+    const layout: Partial<Plotly.Layout> = {
+      title: {
+        text: `Range × Time → Penetration (${titleDetail})`,
+        font: { color: '#e2e8f0', size: 13, family: 'JetBrains Mono, monospace' },
+      },
+      paper_bgcolor: '#0e1117',
+      scene: {
+        xaxis: {
+          title: { text: 'Range', font: { color: '#8492a6', size: 11, family: 'JetBrains Mono, monospace' } },
+          type: 'log',
+          tickvals: [0.001, 0.01, 0.1, 1, 10, 100],
+          ticktext: ['1m', '10m', '100m', '1km', '10km', '100km'],
+          tickfont: { color: '#8492a6', size: 9, family: 'JetBrains Mono, monospace' },
+          gridcolor: '#2a3142',
+          zerolinecolor: '#2a3142',
+          backgroundcolor: '#0e1117',
+          showbackground: true,
+        },
+        yaxis: {
+          title: { text: 'Time (s)', font: { color: '#8492a6', size: 11, family: 'JetBrains Mono, monospace' } },
+          type: 'log',
+          tickvals: [0.01, 0.1, 1, 5, 10, 30],
+          ticktext: ['10ms', '100ms', '1s', '5s', '10s', '30s'],
+          tickfont: { color: '#8492a6', size: 9, family: 'JetBrains Mono, monospace' },
+          gridcolor: '#2a3142',
+          zerolinecolor: '#2a3142',
+          backgroundcolor: '#0e1117',
+          showbackground: true,
+        },
+        zaxis: {
+          title: { text: 'Depth (mm)', font: { color: '#8492a6', size: 11, family: 'JetBrains Mono, monospace' } },
+          range: [0, mpMM],
+          tickfont: { color: '#8492a6', size: 9, family: 'JetBrains Mono, monospace' },
+          gridcolor: '#2a3142',
+          zerolinecolor: '#2a3142',
+          backgroundcolor: '#0e1117',
+          showbackground: true,
+        },
+        bgcolor: '#0e1117',
+        camera: { eye: { x: 1.5, y: -1.8, z: 0.9 } },
+      },
+      margin: { t: 40, b: 10, l: 10, r: 10 },
+      font: { color: '#e2e8f0' },
+    };
+
+    const config: Partial<Plotly.Config> = {
+      responsive: true,
+      displayModeBar: true,
+      modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'] as any[],
+      displaylogo: false,
+    };
+
+    Plotly.react(pb3dDiv, [trace as any], layout, config);
+
+    return () => {
+      Plotly.purge(pb3dDiv!);
+    };
+  });
+
+  // ── Accelerator: Spot Diameter vs Range chart ───────────
+  $effect(() => {
+    if (!accChartCanvas || activeSubTab !== 'particle' || particleSubTab !== 'accelerator') return;
+
+    // Touch reactive deps
+    const _deps = [accLength, accPowerIn, accExitDiam, accGradient, accTargetSpotR, accBeamType];
+
+    const maxR = accMaxRange; // meters
+    const tR = accTargetR;    // target radius in meters
+    const tD_mm = tR * 2 * 1000; // target diameter in mm
+    const numPoints = 300;
+
+    // Plot from 0.1 m to max(maxRange * 3, 100m), log-spaced
+    const plotMax = Math.max(maxR * 3, 100);
+    const logMin = Math.log10(0.1);
+    const logMax = Math.log10(plotMax);
+
+    const points: { x: number; y: number }[] = [];
+    const lossData: number[] = [];
+
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints;
+      const z = Math.pow(10, logMin + t * (logMax - logMin));
+      const spotR = accSpotRadius(z);
+      const spotD_mm = spotR * 2 * 1000;
+      const fraction = Math.min(1, (tR / spotR) ** 2);
+      const loss = (1 - fraction) * 100;
+
+      points.push({ x: z, y: spotD_mm });
+      lossData.push(loss);
+    }
+
+    // Reference line at target diameter
+    const refLine = [
+      { x: points[0].x, y: tD_mm },
+      { x: points[points.length - 1].x, y: tD_mm },
+    ];
+
+    // Max range vertical line (two points at extremes of y)
+    const maxRangeLine = maxR > 0 ? [
+      { x: maxR, y: points[0].y },
+      { x: maxR, y: Math.max(points[points.length - 1].y, 1000) },
+    ] : [];
+
+    const chart = new Chart(accChartCanvas, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Spot Diameter',
+            data: points,
+            showLine: true,
+            borderColor: LC.accent,
+            backgroundColor: LC.accent + '22',
+            pointRadius: 0,
+            pointHitRadius: 8,
+            borderWidth: 2,
+            fill: false,
+          },
+          {
+            label: `Target (${formatCm(accTargetSpotR * 2)} ⌀)`,
+            data: refLine,
+            showLine: true,
+            borderColor: LC.red + '88',
+            borderDash: [6, 4],
+            pointRadius: 0,
+            pointHitRadius: 0,
+            borderWidth: 1,
+            fill: false,
+          },
+          ...(maxR > 0 ? [{
+            label: `Max Range (${formatRangeLabel(maxR / 1000)})`,
+            data: maxRangeLine,
+            showLine: true,
+            borderColor: LC.green + 'aa',
+            borderDash: [4, 4],
+            pointRadius: 0,
+            pointHitRadius: 0,
+            borderWidth: 1,
+            fill: false,
+          }] : []),
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        scales: {
+          x: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Range', color: LC.textDim, font: chartFont },
+            ticks: {
+              color: LC.textDim,
+              font: { size: 10 },
+              callback: (val) => {
+                const v = Number(val);
+                if (v >= 1000) return (v / 1000).toFixed(0) + ' km';
+                return v.toFixed(0) + ' m';
+              },
+            },
+            grid: { color: LC.border },
+          },
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Spot Diameter (mm)', color: LC.textDim, font: chartFont },
+            ticks: {
+              color: LC.textDim,
+              font: { size: 10 },
+              callback: (val) => {
+                const v = Number(val);
+                if (v >= 1000) return (v / 1000).toFixed(0) + ' m';
+                if (v >= 10) return v.toFixed(0) + ' mm';
+                return v.toFixed(1) + ' mm';
+              },
+            },
+            grid: { color: LC.border },
+          },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: maxR > 0
+              ? `Spot Diameter vs Range — Max Effective: ${formatRangeLabel(maxR / 1000)}`
+              : 'Spot Diameter vs Range — Insufficient power at any range',
+            color: LC.text,
+            font: { ...chartFont, size: 13, weight: 600 as const },
+          },
+          legend: {
+            labels: { color: LC.textDim, font: { size: 10 }, padding: 8 },
+          },
+          tooltip: {
+            backgroundColor: LC.surface,
+            borderColor: LC.border,
+            borderWidth: 1,
+            titleColor: LC.text,
+            bodyColor: LC.textDim,
+            filter: (item) => item.datasetIndex === 0,
+            callbacks: {
+              title: (items) => {
+                const z = (items[0].raw as { x: number }).x;
+                return z >= 1000 ? (z / 1000).toFixed(2) + ' km' : z.toFixed(1) + ' m';
+              },
+              label: (item) => {
+                const idx = item.dataIndex;
+                const spotMM = (item.raw as { y: number }).y;
+                const loss = lossData[idx];
+                const spotLabel = spotMM >= 1000
+                  ? (spotMM / 1000).toFixed(2) + ' m'
+                  : spotMM >= 10
+                    ? spotMM.toFixed(1) + ' mm'
+                    : spotMM.toFixed(2) + ' mm';
+                return [
+                  ` Spot: ${spotLabel}`,
+                  ` Power loss: ${loss.toFixed(1)}%`,
+                ];
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return () => chart.destroy();
   });
 </script>
 
@@ -930,9 +1502,9 @@
           <!-- Material -->
           <div class="field-group">
             <label class="field-label">Material</label>
-            <select bind:value={materialIndex}>
-              {#each materials as mat, i}
-                <option value={i}>{mat.name} ({mat.density.toLocaleString()} kg/m³)</option>
+            <select bind:value={projMaterialIndex}>
+              {#each projectileMaterials as mat, i}
+                <option value={i}>{mat.name} ({mat.density_kgm3.toLocaleString()} kg/m³)</option>
               {/each}
             </select>
           </div>
@@ -1016,6 +1588,16 @@
           <SliderInput label="Power ({formatPowerCompact(laserPower)})" bind:value={laserPower} min={0.1} max={100000} step={0.1} log />
           <SliderInput label="Range (km)" bind:value={laserRange} min={1} max={1000} step={1} inputMax={10000} />
 
+          <div class="field-group">
+            <label class="field-label">Target Material</label>
+            <select bind:value={targetMaterialIndex}>
+              {#each targetMaterials as mat, i}
+                <option value={i}>{mat.name}</option>
+              {/each}
+            </select>
+          </div>
+          <SliderInput label="Plate Thickness ({plateThickness} cm)" bind:value={plateThickness} min={1} max={200} step={1} />
+
         </div>
 
         <!-- ── Computed values ─────────────────────────── -->
@@ -1037,7 +1619,8 @@
 
       <!-- ── Penetration Bar ───────────────────────────── -->
       <div class="calc-panel" style="margin-top: 1rem;">
-        <h3 class="bar-title">Steel Plate Penetration (up to {maxPlate * 100} cm)</h3>
+        <h3 class="bar-title">{targetMaterial.name} Plate Penetration (up to {plateThickness} cm)</h3>
+        <p class="bar-note">Absorption model is steel-specific; penetration uses selected material's thermal properties.</p>
 
         <div class="pen-bar-wrapper">
           <div class="pen-bar-track">
@@ -1060,9 +1643,9 @@
           <!-- Scale -->
           <div class="pen-scale">
             <span>0</span>
-            <span>10 cm</span>
-            <span>20 cm</span>
-            <span>30 cm</span>
+            <span>{Math.round(plateThickness / 3)} cm</span>
+            <span>{Math.round(plateThickness * 2 / 3)} cm</span>
+            <span>{plateThickness} cm</span>
           </div>
         </div>
 
@@ -1094,6 +1677,13 @@
 
     {#if activeSubTab === 'particle'}
 
+      <nav class="particle-sub-tabs">
+        <button class="psub-btn" class:active={particleSubTab === 'combat'} onclick={() => particleSubTab = 'combat'}>Combat Analysis</button>
+        <button class="psub-btn" class:active={particleSubTab === 'accelerator'} onclick={() => particleSubTab = 'accelerator'}>Accelerator Design</button>
+      </nav>
+
+      {#if particleSubTab === 'combat'}
+
       <!-- ── Governing Equations ───────────────────────── -->
       <div class="equations-section">
         <h3>Governing Equations</h3>
@@ -1103,7 +1693,7 @@
           </div>
           <div class="eq-label">Spot diameter at range &mdash; geometric + space-charge expansion</div>
           <div class="eq-desc">
-            <span class="eq-var-sm">r<sub>0</sub></span> = initial beam radius (2 mm) &middot;
+            <span class="eq-var-sm">r<sub>0</sub></span> = initial beam radius ({pbR0} mm) &middot;
             <span class="eq-var-sm">&theta;</span> = half-angle divergence &middot;
             <span class="eq-var-sm">R</span> = range &middot;
             <span class="eq-var-sm">K</span> = perveance (0 for neutral beams)
@@ -1147,10 +1737,21 @@
         </div>
 
         <div class="calc-grid">
+          <SliderInput label="Beam Radius ({pbR0} mm)" bind:value={pbR0} min={0.1} max={50} step={0.1} log />
           <SliderInput label="Divergence ({formatDivergence(pbDivergence)})" bind:value={pbDivergence} min={0.5} max={5000} step={0.1} log />
           <SliderInput label="Particle Energy ({formatParticleEnergy(pbEnergy)})" bind:value={pbEnergy} min={1} max={10000} step={1} log />
           <SliderInput label="Power ({formatPowerCompact(pbPower)})" bind:value={pbPower} min={0.1} max={100000} step={0.1} log />
           <SliderInput label="Range ({formatRangeLabel(pbRange)})" bind:value={pbRange} min={0.001} max={100} step={0.001} log inputMax={1000} />
+
+          <div class="field-group">
+            <label class="field-label">Target Material</label>
+            <select bind:value={targetMaterialIndex}>
+              {#each targetMaterials as mat, i}
+                <option value={i}>{mat.name}</option>
+              {/each}
+            </select>
+          </div>
+          <SliderInput label="Plate Thickness ({plateThickness} cm)" bind:value={plateThickness} min={1} max={200} step={1} />
         </div>
 
         <!-- ── Computed values ─────────────────────────── -->
@@ -1177,12 +1778,33 @@
             <span class="result-label">Absorbed power density</span>
             <span class="result-value">{formatPowerDensity(pbAbsorbedPowerDensity)}</span>
           </div>
+          <div class="result-row">
+            <span class="result-label">Normalized emittance (εₙ)</span>
+            <span class="result-value">{(pbNormEmittance * 1e6).toFixed(3)} μm·rad</span>
+          </div>
         </div>
+
+        <!-- ── Feasibility Warnings ─────────────────────── -->
+        {#if pbFeasibility.length > 0}
+          <div class="feasibility-warnings">
+            {#each pbFeasibility as check}
+              <div class="feasibility-item {check.level}">
+                <span class="feasibility-icon">
+                  {#if check.level === 'error'}✕{:else if check.level === 'warning'}⚠{:else}✓{/if}
+                </span>
+                <div class="feasibility-text">
+                  <span class="feasibility-label">{check.label}</span>
+                  <span class="feasibility-detail">{check.detail}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- ── Penetration Bar ───────────────────────────── -->
       <div class="calc-panel" style="margin-top: 1rem;">
-        <h3 class="bar-title">Steel Plate Penetration (up to {maxPlate * 100} cm)</h3>
+        <h3 class="bar-title">{targetMaterial.name} Plate Penetration (up to {plateThickness} cm)</h3>
 
         <div class="pen-bar-wrapper">
           <div class="pen-bar-track">
@@ -1204,9 +1826,9 @@
 
           <div class="pen-scale">
             <span>0</span>
-            <span>10 cm</span>
-            <span>20 cm</span>
-            <span>30 cm</span>
+            <span>{Math.round(plateThickness / 3)} cm</span>
+            <span>{Math.round(plateThickness * 2 / 3)} cm</span>
+            <span>{plateThickness} cm</span>
           </div>
         </div>
 
@@ -1232,6 +1854,127 @@
       <div class="chart-section heatmap-wrap" style="margin-top: 1rem;">
         <canvas bind:this={pbHeatmapCanvas}></canvas>
       </div>
+
+      <!-- ── 3D Surface Plot ─────────────────────────────── -->
+      <div class="chart-section" style="margin-top: 1rem;">
+        <div bind:this={pb3dDiv} class="plotly-3d-container"></div>
+      </div>
+
+      {/if}
+
+      {#if particleSubTab === 'accelerator'}
+
+      <!-- ── Accelerator Equations ───────────────────────── -->
+      <div class="equations-section">
+        <h3>Accelerator Design Equations</h3>
+        <div class="equation-block">
+          <div class="equation">
+            <span class="eq-var">KE</span> = <span class="eq-var">G</span> &middot; <span class="eq-var">L</span>
+          </div>
+          <div class="eq-label">Particle kinetic energy from accelerating gradient &times; length</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">G</span> = gradient (MV/m) &middot;
+            <span class="eq-var-sm">L</span> = accelerator length (m)
+          </div>
+        </div>
+        <div class="equation-block" style="margin-top: 0.75rem;">
+          <div class="equation">
+            <span class="eq-var">&epsilon;<sub>n</sub></span> = <span class="eq-var">&beta;&gamma;</span> &middot; <span class="eq-var">r<sub>0</sub></span> &middot; <span class="eq-var">&theta;</span>
+          </div>
+          <div class="eq-label">Normalized emittance &mdash; derived from fixed divergence (Liouville)</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">&theta;</span> = 5&times;10<sup>-7</sup> rad (fixed) &middot;
+            <span class="eq-var-sm">&beta;&gamma;</span> = relativistic factor &middot;
+            <span class="eq-var-sm">r<sub>0</sub></span> = exit beam radius
+          </div>
+        </div>
+        <div class="equation-block" style="margin-top: 0.75rem;">
+          <div class="equation">
+            <span class="eq-var">L<sub>max</sub></span> = <span class="eq-var">r<sub>t</sub></span> &middot; <span class="eq-var">r<sub>0</sub></span> / <span class="eq-var">&epsilon;</span>
+          </div>
+          <div class="eq-label">Max range for a given spot &mdash; emittance feasibility limit</div>
+          <div class="eq-desc">
+            <span class="eq-var-sm">r<sub>t</sub></span> = target spot radius &middot;
+            <span class="eq-var-sm">&epsilon;</span> = geometric emittance (&epsilon;<sub>n</sub>/&beta;&gamma;)
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Accelerator Inputs ────────────────────────────── -->
+      <div class="calc-panel">
+        <div class="field-group" style="margin-bottom: 1.25rem;">
+          <label class="field-label">Beam Type</label>
+          <div class="shape-buttons">
+            <button class="shape-btn" class:active={accBeamType === 'neutral'} onclick={() => accBeamType = 'neutral'}>Neutral</button>
+            <button class="shape-btn" class:active={accBeamType === 'charged'} onclick={() => accBeamType = 'charged'}>Charged</button>
+          </div>
+        </div>
+
+        <div class="calc-grid">
+          <SliderInput label="L — Accel. Length ({accLength} m)" bind:value={accLength} min={1} max={500} step={1} />
+          <SliderInput label="G — Gradient ({accGradient} MV/m)" bind:value={accGradient} min={1} max={100} step={1} />
+          <div class="eq-hint">KE = G &times; L = <strong>{formatParticleEnergy(accParticleKE)}</strong></div>
+          <SliderInput label="Pᵢₙ — Elec. Power ({formatPowerCompact(accPowerIn)})" bind:value={accPowerIn} min={0.1} max={100000} step={0.1} log />
+          <div class="eq-hint">&eta; = 30% &rarr; P_beam = <strong>{formatPowerCompact(accBeamPower)}</strong>, I = <strong>{formatCurrent(accCurrent)}</strong></div>
+          <SliderInput label="d₀ — Exit ⌀ ({formatCm(accExitDiam)})" bind:value={accExitDiam} min={0.02} max={10} step={0.01} log />
+          <SliderInput label="rₜ — Target Spot ({formatCm(accTargetSpotR)})" bind:value={accTargetSpotR} min={0.05} max={5} step={0.01} log />
+          <div class="eq-hint">&theta; = 5&times;10⁻⁷ rad (fixed) &rarr; &epsilon;ₙ = <strong>{accNormEmittance.toFixed(3)} &mu;m&middot;rad</strong></div>
+        </div>
+
+        <!-- ── Derived Values ──────────────────────────────── -->
+        <div class="results">
+          <div class="result-row">
+            <span class="result-label">Particle energy (KE = G&times;L)</span>
+            <span class="result-value">{formatParticleEnergy(accParticleKE)}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Beam power (P<sub>beam</sub> = 0.3 &times; P<sub>in</sub>)</span>
+            <span class="result-value">{formatPowerCompact(accBeamPower)}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Beam current (I = P/KE)</span>
+            <span class="result-value">{formatCurrent(accCurrent)}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Divergence (&theta;) — fixed</span>
+            <span class="result-value">{ACC_DIVERGENCE_URAD} &mu;rad</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Norm. emittance (&epsilon;<sub>n</sub> = &beta;&gamma; &middot; r₀ &middot; &theta;)</span>
+            <span class="result-value">{accNormEmittance.toFixed(3)} &mu;m&middot;rad</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Geom. emittance (&epsilon; = &theta; &middot; r₀)</span>
+            <span class="result-value">{(accGeomEmittance * 1e9).toFixed(2)} nm&middot;rad</span>
+          </div>
+          {#if accBeamType === 'charged'}
+            <div class="result-row">
+              <span class="result-label">Perveance (K)</span>
+              <span class="result-value">{accPerveance.toExponential(2)}</span>
+            </div>
+          {/if}
+          <div class="result-row">
+            <span class="result-label">Relativistic &beta;&gamma;</span>
+            <span class="result-value">{accBetaGamma.toFixed(3)}</span>
+          </div>
+          <div class="result-divider"></div>
+          <div class="result-row primary">
+            <span class="result-label">Max effective range</span>
+            <span class="result-value">{accMaxRange > 0 ? formatRangeLabel(accMaxRange / 1000) : 'N/A — insufficient power'}</span>
+          </div>
+          <div class="result-row" style="margin-top: 0.25rem;">
+            <span class="result-label" style="font-size: 0.7rem;">Target: 33 kJ in {formatCm(accTargetSpotR * 2)} spot in 0.5 s ({(ACC_TARGET_POWER / 1000).toFixed(0)} kW absorbed)</span>
+            <span class="result-value"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Spot Diameter vs Range Chart ───────────────────── -->
+      <div class="chart-section" style="margin-top: 1rem;">
+        <canvas bind:this={accChartCanvas}></canvas>
+      </div>
+
+      {/if}
 
     {/if}
   </div>
@@ -1511,9 +2254,16 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.85rem;
     color: var(--text);
-    margin-bottom: 1rem;
+    margin-bottom: 0.25rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .bar-note {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    font-style: italic;
+    margin-bottom: 1rem;
   }
 
   .pen-bar-wrapper {
@@ -1615,6 +2365,129 @@
   .heatmap-wrap canvas {
     width: 100%;
     height: auto;
+  }
+
+  .plotly-3d-container {
+    width: 100%;
+    height: 520px;
+  }
+
+  /* ── Particle Sub-Tabs ────────────────────────────── */
+  .particle-sub-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .psub-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .psub-btn:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+
+  .psub-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── Equation hints inline in calc-grid ──────────── */
+  .eq-hint {
+    grid-column: 1 / -1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.3rem 0.6rem;
+    margin: -0.5rem 0 0.25rem;
+  }
+
+  .eq-hint strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── Feasibility Warnings ─────────────────────────── */
+  .feasibility-warnings {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .feasibility-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid;
+  }
+
+  .feasibility-item.error {
+    background: rgba(252, 129, 129, 0.08);
+    border-color: rgba(252, 129, 129, 0.3);
+  }
+
+  .feasibility-item.warning {
+    background: rgba(237, 137, 54, 0.08);
+    border-color: rgba(237, 137, 54, 0.3);
+  }
+
+  .feasibility-item.ok {
+    background: rgba(104, 211, 145, 0.06);
+    border-color: rgba(104, 211, 145, 0.2);
+  }
+
+  .feasibility-icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 1.2rem;
+    text-align: center;
+  }
+
+  .feasibility-item.error .feasibility-icon { color: #fc8181; }
+  .feasibility-item.warning .feasibility-icon { color: #ed8936; }
+  .feasibility-item.ok .feasibility-icon { color: #68d391; }
+
+  .feasibility-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .feasibility-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .feasibility-item.error .feasibility-label { color: #fc8181; }
+  .feasibility-item.warning .feasibility-label { color: #ed8936; }
+  .feasibility-item.ok .feasibility-label { color: #68d391; }
+
+  .feasibility-detail {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.4;
   }
 
   /* ── Responsive ─────────────────────────────────── */

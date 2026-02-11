@@ -1,0 +1,228 @@
+{
+  "description": "Hard physics limits and governing equations for particle beams in vacuum. Organized into absolute limits (cannot be crossed), propagation constraints, charged-beam-only limits, and focusing constraints.",
+
+  "symbols": {
+    "r": "desired spot radius at the target (m)",
+    "L": "propagation distance / range (m)",
+    "theta": "RMS or characteristic beam divergence angle (rad)",
+    "r_0": "beam radius at exit / at last focus (m)",
+    "p": "particle momentum (kg·m/s)",
+    "q": "particle charge (C)",
+    "beta": "v/c (particle speed as fraction of light speed)",
+    "gamma": "Lorentz factor = 1/sqrt(1 - beta^2)",
+    "epsilon": "geometric emittance (m·rad)",
+    "epsilon_n": "normalized emittance (m·rad)",
+    "K": "generalized perveance (dimensionless)",
+    "I": "beam current (A)",
+    "I_A": "Alfvén current (A)",
+    "B_rho": "magnetic rigidity (T·m)"
+  },
+
+  "absoluteLimits": {
+    "speedLimit": {
+      "id": "speed-limit",
+      "name": "Speed of Light",
+      "equation": "v < c",
+      "description": "A particle beam cannot propagate faster than light. No workaround.",
+      "constant": { "c_m_s": 299792458 }
+    },
+
+    "quantumDiffractionFloor": {
+      "id": "quantum-diffraction",
+      "name": "Quantum Diffraction Limit",
+      "equations": {
+        "deBroglieWavelength": "lambda = h / p",
+        "minSpotRadius": "r_min ~ 0.61 * lambda / NA"
+      },
+      "description": "Any beam of massive particles has a de Broglie wavelength that sets an ultimate diffraction-like focusing limit. For MeV-GeV beams, lambda is so tiny this is rarely the limiting factor for weapons, but it is a real hard floor.",
+      "constants": {
+        "h_Js": 6.626e-34,
+        "NA_max": 1.0
+      },
+      "note": "NA (numerical aperture) <= 1 in vacuum. For a 100 MeV proton, lambda ~ 3e-15 m, far below any practical limit."
+    },
+
+    "liouvilleTheorem": {
+      "id": "liouville-emittance",
+      "name": "Phase-Space Conservation (Liouville Theorem)",
+      "equation": "epsilon_n = beta * gamma * epsilon = constant (without cooling)",
+      "description": "In collisionless Hamiltonian beam transport (ideal lenses, no cooling), phase-space volume is conserved. You cannot arbitrarily make the beam 'colder' with perfect optics. For a given source/beam, there is a minimum achievable divergence × spot-size product set by its emittance."
+    },
+
+    "alfvenCurrentScales": {
+      "id": "alfven-current",
+      "name": "Alfvén Current Scales",
+      "description": "Fundamental current scales set by nature that determine the strength of space-charge effects via perveance.",
+      "constants": {
+        "electron_I_A_A": 17000,
+        "electron_I_A_label": "~17 kA",
+        "proton_I_A_A": 31300000,
+        "proton_I_A_label": "~31.3 MA"
+      }
+    }
+  },
+
+  "propagationConstraints": {
+    "geometricDivergence": {
+      "id": "geometric-divergence",
+      "name": "Spot Size vs Divergence Over Distance",
+      "equations": {
+        "spotAtRange": "r(L) = sqrt(r_0^2 + (L * theta)^2)",
+        "requirement": "theta <= r / L"
+      },
+      "description": "For a drift region, if you want a particular spot radius r at distance L, your divergence must satisfy theta <= r/L. This is a strict minimum requirement on divergence.",
+      "type": "hard_minimum"
+    },
+
+    "emittanceMinDivergence": {
+      "id": "emittance-divergence",
+      "name": "Emittance Sets Minimum Divergence",
+      "equations": {
+        "beamQuality": "epsilon = r_0 * theta",
+        "minDivergence": "theta >= epsilon / r_0"
+      },
+      "description": "A common beam-quality relation. Divergence cannot be reduced below epsilon/r_0 for a given exit radius.",
+      "type": "hard_lower_bound"
+    },
+
+    "maxRangeForSpot": {
+      "id": "max-range",
+      "name": "Maximum Range for Given Spot Size",
+      "equations": {
+        "feasibility": "epsilon / r_0 <= r / L",
+        "maxRange": "L_max = r * r_0 / epsilon",
+        "normalized": "epsilon_n <= beta * gamma * r * r_0 / L"
+      },
+      "description": "Combining geometric divergence requirement with emittance lower bound gives the cleanest 'max range for a given spot' statement. If the emittance doesn't satisfy this, you cannot concentrate the beam into that spot at that distance — power doesn't fix it.",
+      "type": "hard_feasibility"
+    }
+  },
+
+  "chargedBeamLimits": {
+    "perveance": {
+      "id": "perveance",
+      "name": "Space-Charge Strength (Perveance)",
+      "equation": "K = 2 * I / (I_A * beta^3 * gamma^3)",
+      "description": "If the beam is not neutralized, mutual repulsion creates an additional expansion term that cannot be cheated. This is the biggest reason charged beams struggle to stay tight at high power.",
+      "thresholds": {
+        "negligible": { "K_max": 1e-6, "label": "K < 10^-6: negligible space charge" },
+        "moderate": { "K_max": 1e-4, "label": "K < 10^-4: moderate, can be partially compensated" },
+        "severe": { "K_max": 1e-2, "label": "K < 10^-2: severe, dominates beam expansion" },
+        "catastrophic": { "K_min": 1e-2, "label": "K > 10^-2: beam blows apart rapidly" }
+      }
+    },
+
+    "envelopeEquation": {
+      "id": "beam-envelope",
+      "name": "Beam Envelope Equation",
+      "equation": "R''(z) = epsilon^2 / R(z)^3 + K / R(z)",
+      "terms": {
+        "emittanceTerm": "epsilon^2 / R^3 — emittance-driven spread",
+        "spaceChargeTerm": "K / R — space-charge-driven expansion"
+      },
+      "description": "Standard form for a round beam in drift with no external focusing. For a given energy, current, and initial radius, there is a minimum expansion that cannot be optically 'undone' unless you neutralize charge or add continuous focusing."
+    },
+
+    "brightnessConservation": {
+      "id": "brightness",
+      "name": "Normalized Brightness Conservation",
+      "equation": "B_n ~ I / (epsilon_n_x * epsilon_n_y)",
+      "description": "You can trade spot size and divergence, but you cannot exceed the beam's intrinsic brightness without changing the source/beam generation method."
+    }
+  },
+
+  "focusingConstraints": {
+    "magneticRigidity": {
+      "id": "magnetic-rigidity",
+      "name": "Magnetic Rigidity",
+      "equation": "B * rho = p / q",
+      "description": "Higher momentum particles require larger or stronger magnets for the same focusing effect. This is the fundamental scaling for lens strength, not just barrel containment.",
+      "note": "q = e for protons/electrons, fixed by nature. For a 100 MeV proton, B*rho ~ 1.0 T·m; for 1 GeV proton, B*rho ~ 5.7 T·m."
+    }
+  },
+
+  "feasibilityChecklist": {
+    "mustHitRequirements": {
+      "description": "If either fails, you can't concentrate the beam into that spot at that distance — power doesn't fix it.",
+      "checks": [
+        {
+          "name": "Geometric divergence",
+          "condition": "theta <= r / L",
+          "consequence": "Beam spot larger than target feature"
+        },
+        {
+          "name": "Emittance compatibility",
+          "condition": "epsilon <= r * r_0 / L",
+          "normalizedForm": "epsilon_n <= beta * gamma * r * r_0 / L",
+          "consequence": "Beam quality insufficient for this range/spot combination"
+        }
+      ]
+    },
+    "cannotCrossLimits": [
+      "Speed: v < c",
+      "Quantum focusing floor: r >= 0.61 * lambda / NA, where lambda = h/p",
+      "No-free-cooling: normalized emittance epsilon_n is conserved without cooling (Liouville)",
+      "Alfvén current scales: I_A,e ~ 17 kA, I_A,p ~ 31.3 MA (set the scale of space-charge effects)"
+    ]
+  },
+
+  "typicalEmittanceValues": {
+    "description": "State-of-art normalized emittance values for reference. These set the practical limits on what divergence is achievable for a given beam radius.",
+    "protonBeams": [
+      { "source": "RF ion source (typical)", "epsilon_n_m_rad": 1e-6, "label": "~1 μm·rad" },
+      { "source": "High-brightness injector", "epsilon_n_m_rad": 2e-7, "label": "~0.2 μm·rad" },
+      { "source": "State-of-art (SNS-class)", "epsilon_n_m_rad": 5e-7, "label": "~0.5 μm·rad" },
+      { "source": "Theoretical best (H- stripping)", "epsilon_n_m_rad": 5e-8, "label": "~0.05 μm·rad" }
+    ],
+    "electronBeams": [
+      { "source": "Thermionic gun", "epsilon_n_m_rad": 1e-5, "label": "~10 μm·rad" },
+      { "source": "RF photoinjector", "epsilon_n_m_rad": 1e-6, "label": "~1 μm·rad" },
+      { "source": "State-of-art", "epsilon_n_m_rad": 1e-7, "label": "~0.1 μm·rad" }
+    ],
+    "note": "For weapon-grade neutral hydrogen beams, assume epsilon_n in the range 0.1-1 μm·rad as achievable near-future."
+  },
+
+  "gameDesignDefaults": {
+    "r_0_m": 0.002,
+    "depositionEfficiency": 0.60,
+    "alfvenCurrentProton_A": 31300000,
+    "protonRestMass_MeV": 938.272,
+    "minPenetrationThreshold_mm": 1.0,
+    "maxPlateThickness_mm": 300,
+    "note": "These match the values currently used in the combat analysis calculator."
+  },
+
+  "acceleratorDesign": {
+    "description": "Parameters and target requirements for the Accelerator Design sub-tab.",
+    "targetRequirement": {
+      "energy_kJ": 33,
+      "spotDiameter_cm": 0.5,
+      "time_s": 0.5,
+      "absorbedPower_kW": 66,
+      "description": "Must deliver 33 kJ into a 0.5 cm spot in 0.5 seconds (66 kW absorbed at target)."
+    },
+    "acceleratingGradient": {
+      "description": "RF gradient converting accelerator length to particle energy: KE = G × L.",
+      "typicalValues": [
+        { "technology": "Normal-conducting RF (S-band)", "gradient_MV_m": "15-30", "default": 20 },
+        { "technology": "Superconducting RF (SRF)", "gradient_MV_m": "25-50" },
+        { "technology": "Novel/advanced concepts", "gradient_MV_m": "50-100+" }
+      ]
+    },
+    "wallPlugEfficiency": {
+      "description": "Fraction of electrical input power converted to beam power.",
+      "typicalRange_pct": "10-50",
+      "default_pct": 30,
+      "note": "Includes RF source efficiency, beam loading, thermal losses."
+    },
+    "derivedDivergence": {
+      "equation": "theta = epsilon_n / (beta * gamma * r_0)",
+      "description": "Beam divergence is derived from normalized emittance, relativistic factor, and exit radius. This is the Liouville-limited minimum divergence for the beam quality."
+    },
+    "maxRangeEquation": {
+      "description": "Max effective range is found by binary search for the distance where absorbed power × time < 33 kJ. Accounts for geometric spreading (beam area vs target area fraction) and deposition efficiency.",
+      "powerOnTarget": "eta * P_beam * min(1, (r_target / r_spot)^2)",
+      "cutoff": "P_on_target * t < 33 kJ"
+    }
+  }
+}

@@ -74,7 +74,7 @@ There is no test runner or linter configured. `npm run build` runs `svelte-check
 - **struct-sizer** (`src/tools/struct-sizer/`) — C++ struct memory/padding estimator. Supports 51 types (primitives, STL containers, pointers). No external data files.
 - **power-gen** (`src/tools/power-gen/`) — Power generator & thruster design. Sub-tabs for Generators (4 charts) and Thrusters (placeholder). Reference data in `data/*.json` (10 files: generator-comparison, fuel-energy-density, radiator-cooling, radiator-materials, carrier-power-bounds, nuclear-conversion-chain, water-use-nuclear, direct-conversion-methods, fusion-size-factors, fusion-tech-improvements).
 - **production-chain** (`src/tools/production-chain/`) — Production chain design for spacecraft construction. Reference data in `data/*.json` (4 files: material-breakdown, raw-resource-requirements, production-constraints, logistics-vehicles). Charts: material doughnut breakdowns, raw resource bars, raw-vs-finished stacked bars, hauls-to-build log-scale comparisons. Two reference ship scales: 30t baseline orbital-class and 100kt carrier.
-- **calculations** (`src/tools/calculations/`) — Physics calculators with sub-tabs: Projectile (KE = ½mv², shape/material selectors), Laser (steel penetration via energy-balance melt-through model with slider inputs, penetration bar, time-vs-depth chart, range-vs-power heatmap), and Particle Beam (charged/neutral/laser feasibility at multiple ranges, comparison heatmaps with blacked-out ineffective regions). Particle beam data in `data/*.json` (5 files: particle-beam-feasibility, particle-beam-comparison, particle-beam-divergence, particle-beam-efficiencies, particle-beam-target).
+- **calculations** (`src/tools/calculations/`) — Physics calculators with sub-tabs: Projectile (KE = ½mv², shape/material selectors from materials DB), Laser (penetration via energy-balance melt-through model with slider inputs, penetration bar, time-vs-depth chart, range-vs-power heatmap), and Particle Beam (charged/neutral beam feasibility at multiple ranges, comparison heatmaps with blacked-out ineffective regions). Laser and Particle Beam share a target material selector and adjustable plate thickness (1–200 cm) from the materials database; absorption model remains steel-specific. Data in `data/*.json` (7 files: materials-database with 82 materials, particle-beam-feasibility, particle-beam-comparison, particle-beam-divergence, particle-beam-efficiencies, particle-beam-target, particle-beam-physics-limits).
 
 ### CSS Custom Properties
 
@@ -126,11 +126,12 @@ GitHub Actions (`.github/workflows/deploy.yml`) auto-deploys on push to `main`:
 
 ### Key Dependencies
 
-| Package    | Version  | Purpose                                |
-|------------|----------|----------------------------------------|
-| svelte     | ^5.0.0   | UI framework (runes API)               |
-| vite       | ^6.1.0   | Bundler and dev server                 |
-| chart.js   | ^4.5.1   | Charts (bar, doughnut, line, scatter)  |
-| express    | ^4.21.0  | Backend API server                     |
-| typescript | ^5.7.0   | Type checking                          |
-| tsx        | ^4.19.0  | TypeScript execution for backend       |
+| Package               | Version  | Purpose                                |
+|-----------------------|----------|----------------------------------------|
+| svelte                | ^5.0.0   | UI framework (runes API)               |
+| vite                  | ^6.1.0   | Bundler and dev server                 |
+| chart.js              | ^4.5.1   | Charts (bar, doughnut, line, scatter)  |
+| plotly.js-gl3d-dist-min | ^3.0.0 | 3D surface plots (particle beam)       |
+| express               | ^4.21.0  | Backend API server                     |
+| typescript            | ^5.7.0   | Type checking                          |
+| tsx                   | ^4.19.0  | TypeScript execution for backend       |

@@ -14,12 +14,14 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "cors": "^2.8.5",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "plotly.js-gl3d-dist-min": "^3.3.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/plotly.js": "^3.0.9",
     "concurrently": "^9.1.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
