@@ -116,6 +116,25 @@ Tool-specific reference data lives in `src/tools/<name>/data/*.json`. These are 
 - Arrays of objects with numeric properties for chart data
 - Named keys for lookup tables (e.g., materials, technologies)
 
+### Private Docker Registry
+
+A private Docker registry is available on the local network for hosting built images:
+
+| Setting | Value |
+|---------|-------|
+| Registry URL | `dockerreg.house` (192.168.100.10, VLAN 100) |
+| Protocol | HTTPS (mkcert TLS) |
+| Auth | None (open on local network) |
+| Image name | `dockerreg.house/planet-command-design` |
+
+**Build and push:**
+```bash
+docker build -t dockerreg.house/planet-command-design:latest .
+docker push dockerreg.house/planet-command-design:latest
+```
+
+The image is consumed by TrueNAS Scale (192.168.1.94) which runs the app as a custom Docker compose app with a Caddy TLS sidecar on a macvlan network at 192.168.1.72 (`planetcommand.home`).
+
 ### Deployment
 
 GitHub Actions (`.github/workflows/deploy.yml`) auto-deploys on push to `main`:
@@ -137,3 +156,40 @@ GitHub Actions (`.github/workflows/deploy.yml`) auto-deploys on push to `main`:
 | express               | ^4.21.0  | Backend API server                     |
 | typescript            | ^5.7.0   | Type checking                          |
 | tsx                   | ^4.19.0  | TypeScript execution for backend       |
+
+### NASA Ephemeris Data (`nasa_data/`)
+
+Download scripts for NASA JPL DE441 planetary/lunar ephemeris data (~85 GB total). Two equivalent scripts:
+
+- `nasa_data/download_de441.sh` — Bash version (curl-based)
+- `nasa_data/download_de441.ps1` — PowerShell version (.NET HttpWebRequest)
+
+Both support resume (safe to interrupt and re-run), auto-retry (5 attempts), and skip already-complete files. Toggle `$Download*` / `DOWNLOAD_*` flags at the top to enable/disable categories.
+
+**Data categories:**
+
+| Category | Directory | Size | Source |
+|----------|-----------|------|--------|
+| BSP (SPICE kernels) | `nasa_data/bsp/` | ~3.2 GB | `ssd.jpl.nasa.gov/ftp/eph/planets/bsp/` |
+| ASCII coefficients | `nasa_data/ascii/` | ~8.8 GB | 31 Chebyshev files (-13000 to +17000) |
+| Linux binary | `nasa_data/linux/` | ~2.6 GB | Native binary format |
+| NIO format | `nasa_data/nio/` | ~3.3 GB | Network-independent format |
+| Small bodies | `nasa_data/small_bodies/` | ~15.7 GB | 373 asteroid perturbers for DE441 |
+| Satellites | `nasa_data/satellites/` | ~50 GB | Moon ephemerides (all planets + TNOs) |
+| Lunar frames | `nasa_data/bpc/` | ~13 MB | Orientation frame kernels |
+| Documentation | `nasa_data/docs/` | ~30 MB | IOMs, papers |
+| Fortran readers | `nasa_data/fortran/` | ~100 KB | `asc2eph.f`, `testeph.f` |
+| Test data | `nasa_data/test_data/` | ~10 MB | Verification test files |
+
+**Run:**
+```powershell
+cd nasa_data
+.\download_de441.ps1                                          # PowerShell
+# or
+powershell -ExecutionPolicy Bypass -File .\download_de441.ps1  # if policy restricted
+```
+```bash
+cd nasa_data && chmod +x download_de441.sh && ./download_de441.sh  # Bash
+```
+
+**Note:** `nasa_data/` contents should be gitignored — these are large binary/ASCII data files downloaded from JPL.

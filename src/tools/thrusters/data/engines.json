@@ -1,0 +1,173 @@
+{
+  "title": "Engine & Thruster Reference Database",
+  "description": "Representative engines and thrusters with vacuum thrust, mass, T/W ratio, specific impulse, and propellant mass flow rate. Mass flow estimated via mdot = T / (Isp * g0) where g0 = 9.81 m/s².",
+  "categories": [
+    {
+      "id": "chemical-booster",
+      "label": "Chemical Launch & Upper Stage Engines",
+      "notes": [
+        "Booster engines typically have the highest T/W.",
+        "Hydrogen engines have lower T/W but highest Isp among chemical systems."
+      ],
+      "engines": [
+        {
+          "name": "Raptor 2 (SL)",
+          "propellant": "LOX / CH₄",
+          "thrust_N": 2255000,
+          "mass_kg": 1600,
+          "tw_ratio": 144,
+          "isp_s": 327,
+          "mass_flow_kg_s": 703
+        },
+        {
+          "name": "Merlin 1D (SL)",
+          "propellant": "LOX / RP-1",
+          "thrust_N": 854000,
+          "mass_kg": 470,
+          "tw_ratio": 185,
+          "isp_s": 282,
+          "mass_flow_kg_s": 309
+        },
+        {
+          "name": "RS-25",
+          "propellant": "LOX / LH₂",
+          "thrust_N": 1860000,
+          "mass_kg": 3177,
+          "tw_ratio": 60,
+          "isp_s": 452,
+          "mass_flow_kg_s": 420
+        },
+        {
+          "name": "RL10",
+          "propellant": "LOX / LH₂",
+          "thrust_N": 110000,
+          "mass_kg": 277,
+          "tw_ratio": 40,
+          "isp_s": 465,
+          "mass_flow_kg_s": 24
+        },
+        {
+          "name": "Vinci",
+          "propellant": "LOX / LH₂",
+          "thrust_N": 180000,
+          "mass_kg": 300,
+          "tw_ratio": 61,
+          "isp_s": 457,
+          "mass_flow_kg_s": 40
+        }
+      ]
+    },
+    {
+      "id": "chemical-spacecraft",
+      "label": "Spacecraft Chemical Engines & RCS",
+      "notes": [
+        "RCS systems favor simplicity and storability over performance."
+      ],
+      "engines": [
+        {
+          "name": "AJ10",
+          "propellant": "MMH / N₂O₄",
+          "thrust_N": 26700,
+          "mass_kg": 118,
+          "tw_ratio": 23,
+          "isp_s": 316,
+          "mass_flow_kg_s": 8.6
+        },
+        {
+          "name": "Draco",
+          "propellant": "MMH / N₂O₄",
+          "thrust_N": 400,
+          "mass_kg": 4,
+          "tw_ratio": 10,
+          "isp_s": 300,
+          "mass_flow_kg_s": 0.14
+        },
+        {
+          "name": "SuperDraco",
+          "propellant": "Hypergolic",
+          "thrust_N": 73000,
+          "mass_kg": 68,
+          "tw_ratio": 110,
+          "isp_s": 240,
+          "mass_flow_kg_s": 31
+        }
+      ]
+    },
+    {
+      "id": "hall-effect",
+      "label": "Hall Effect Thrusters (Electric)",
+      "notes": [
+        "Extremely low T/W.",
+        "Propellant consumption is measured in milligrams per second."
+      ],
+      "engines": [
+        {
+          "name": "SPT-140",
+          "propellant": "Xenon",
+          "thrust_N": 0.28,
+          "mass_kg": 8,
+          "tw_ratio": 0.0036,
+          "isp_s": 1800,
+          "mass_flow_kg_s": 0.000016
+        },
+        {
+          "name": "BHT-6000",
+          "propellant": "Xenon",
+          "thrust_N": 0.35,
+          "mass_kg": 12,
+          "tw_ratio": 0.003,
+          "isp_s": 2000,
+          "mass_flow_kg_s": 0.000018
+        }
+      ]
+    },
+    {
+      "id": "ion",
+      "label": "Ion Thrusters (Gridded Ion)",
+      "notes": [
+        "10-15x the efficiency of chemical rockets.",
+        "10,000-100,000x lower thrust."
+      ],
+      "engines": [
+        {
+          "name": "NEXT",
+          "propellant": "Xenon",
+          "thrust_N": 0.237,
+          "mass_kg": 12,
+          "tw_ratio": 0.002,
+          "isp_s": 4190,
+          "mass_flow_kg_s": 0.0000058
+        },
+        {
+          "name": "NSTAR (Dawn class)",
+          "propellant": "Xenon",
+          "thrust_N": 0.09,
+          "mass_kg": 8,
+          "tw_ratio": 0.0011,
+          "isp_s": 3100,
+          "mass_flow_kg_s": 0.000003
+        }
+      ]
+    },
+    {
+      "id": "nuclear-thermal",
+      "label": "Nuclear Thermal Rocket (Tested / Development)",
+      "notes": [
+        "~2x chemical efficiency.",
+        "Much lower thrust-to-weight than chemical boosters.",
+        "Designed for in-space use only."
+      ],
+      "engines": [
+        {
+          "name": "NERVA",
+          "propellant": "Liquid Hydrogen",
+          "thrust_N": 250000,
+          "mass_kg": 34000,
+          "tw_ratio": 0.75,
+          "isp_s": 850,
+          "mass_flow_kg_s": 30
+        }
+      ]
+    }
+  ]
+}

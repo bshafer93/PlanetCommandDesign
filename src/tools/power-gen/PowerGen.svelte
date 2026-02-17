@@ -7,8 +7,7 @@
 
   Chart.register(...registerables);
 
-  type SubTab = 'generators' | 'thrusters';
-  let activeSubTab: SubTab = $state('generators');
+  // Generators only (thrusters moved to dedicated Thrusters tool)
 
   // Colors matching global.css custom properties (Chart.js canvas can't read CSS vars)
   const C = {
@@ -132,7 +131,7 @@
   const titleFont = { family: "'JetBrains Mono', monospace" as const, size: 13, weight: 600 as const };
 
   $effect(() => {
-    if (!canvas1 || activeSubTab !== 'generators') return;
+    if (!canvas1) return;
     const chart = new Chart(canvas1, {
       type: 'line',
       data: { labels: volumes, datasets: chart1Datasets as any },
@@ -175,7 +174,7 @@
   });
 
   $effect(() => {
-    if (!canvas2 || activeSubTab !== 'generators') return;
+    if (!canvas2) return;
     const chart = new Chart(canvas2, {
       type: 'line',
       data: { labels: areas, datasets: chart2Datasets as any },
@@ -212,7 +211,7 @@
   });
 
   $effect(() => {
-    if (!canvas3 || activeSubTab !== 'generators') return;
+    if (!canvas3) return;
     const chart = new Chart(canvas3, {
       type: 'bar',
       data: {
@@ -275,7 +274,7 @@
   });
 
   $effect(() => {
-    if (!canvas4 || activeSubTab !== 'generators') return;
+    if (!canvas4) return;
     const chart = new Chart(canvas4, {
       type: 'bar',
       data: {
@@ -330,28 +329,10 @@
 </script>
 
 <section class="power-gen">
-  <h2>Power & Propulsion</h2>
-  <p class="subtitle">Generator and thruster design tools</p>
-
-  <nav class="sub-tab-bar">
-    <button
-      class="sub-tab-btn"
-      class:active={activeSubTab === 'generators'}
-      onclick={() => activeSubTab = 'generators'}
-    >
-      Generators
-    </button>
-    <button
-      class="sub-tab-btn"
-      class:active={activeSubTab === 'thrusters'}
-      onclick={() => activeSubTab = 'thrusters'}
-    >
-      Thrusters
-    </button>
-  </nav>
+  <h2>Power Generation</h2>
+  <p class="subtitle">Generator design tools</p>
 
   <div class="sub-content">
-    {#if activeSubTab === 'generators'}
 
       <!-- ── Governing Equations ──────────────────────── -->
       <div class="equations-section">
@@ -415,12 +396,6 @@
         </div>
       </div>
 
-    {:else}
-      <div class="placeholder">
-        <h3>Thrusters</h3>
-        <p>Thruster design tools coming soon.</p>
-      </div>
-    {/if}
   </div>
 </section>
 
@@ -437,35 +412,6 @@
     color: var(--text-dim);
     font-size: 0.85rem;
     margin-bottom: 1.25rem;
-  }
-
-  .sub-tab-bar {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 1.5rem;
-  }
-
-  .sub-tab-btn {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text-dim);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .sub-tab-btn:hover {
-    color: var(--text);
-  }
-
-  .sub-tab-btn.active {
-    color: var(--orange);
-    border-bottom-color: var(--orange);
   }
 
   .sub-content {
@@ -547,19 +493,6 @@
 
   .chart-row .chart-section {
     margin-bottom: 0;
-  }
-
-  /* ── Placeholder ─────────────────────────────────── */
-  .placeholder h3 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.1rem;
-    color: var(--text);
-    margin-bottom: 0.5rem;
-  }
-
-  .placeholder p {
-    color: var(--text-dim);
-    font-size: 0.9rem;
   }
 
   /* ── Responsive ──────────────────────────────────── */

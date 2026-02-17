@@ -1,0 +1,15 @@
+services:
+  planet-command:
+    build: .
+    container_name: planet-command-design
+    ports:
+      - "3001:3001"
+    volumes:
+      - app-data:/app/server/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
+
+volumes:
+  app-data:

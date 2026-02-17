@@ -1,5 +1,16 @@
 .claude/
+.env
 node_modules/
 dist/
 server/data/
+nasa_data/bsp/
+nasa_data/ascii/
+nasa_data/linux/
+nasa_data/nio/
+nasa_data/small_bodies/
+nasa_data/satellites/
+nasa_data/bpc/
+nasa_data/docs/
+nasa_data/fortran/
+nasa_data/test_data/
 nul

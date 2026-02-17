@@ -1,0 +1,72 @@
+{
+  "title": "Propulsion Performance Comparison Summary",
+  "description": "Range-based comparison of propulsion types by T/W ratio, specific impulse, and mass flow rate.",
+  "takeaways": [
+    "Chemical rockets maximize thrust-to-weight.",
+    "Electric propulsion maximizes propellant efficiency.",
+    "Nuclear thermal doubles chemical efficiency but sacrifices T/W.",
+    "Thrust-to-weight drops by 4-5 orders of magnitude when moving from chemical to electric propulsion."
+  ],
+  "types": [
+    {
+      "id": "chemical-booster",
+      "label": "Chemical booster",
+      "tw_min": 100,
+      "tw_max": 190,
+      "isp_min_s": 250,
+      "isp_max_s": 380,
+      "mass_flow_min_kg_s": 300,
+      "mass_flow_max_kg_s": 700
+    },
+    {
+      "id": "cryogenic-upper",
+      "label": "Cryogenic upper stage",
+      "tw_min": 40,
+      "tw_max": 60,
+      "isp_min_s": 450,
+      "isp_max_s": 470,
+      "mass_flow_min_kg_s": 20,
+      "mass_flow_max_kg_s": 40
+    },
+    {
+      "id": "hypergolic-spacecraft",
+      "label": "Hypergolic spacecraft",
+      "tw_min": 10,
+      "tw_max": 25,
+      "isp_min_s": 290,
+      "isp_max_s": 320,
+      "mass_flow_min_kg_s": 0.1,
+      "mass_flow_max_kg_s": 30
+    },
+    {
+      "id": "hall-thruster",
+      "label": "Hall thruster",
+      "tw_min": 0.003,
+      "tw_max": 0.004,
+      "isp_min_s": 1500,
+      "isp_max_s": 2500,
+      "mass_flow_min_kg_s": 1e-5,
+      "mass_flow_max_kg_s": 1e-5
+    },
+    {
+      "id": "ion-thruster",
+      "label": "Ion thruster",
+      "tw_min": 0.001,
+      "tw_max": 0.002,
+      "isp_min_s": 3000,
+      "isp_max_s": 4200,
+      "mass_flow_min_kg_s": 1e-6,
+      "mass_flow_max_kg_s": 1e-6
+    },
+    {
+      "id": "nuclear-thermal",
+      "label": "Nuclear thermal",
+      "tw_min": 0.5,
+      "tw_max": 1.0,
+      "isp_min_s": 850,
+      "isp_max_s": 900,
+      "mass_flow_min_kg_s": 30,
+      "mass_flow_max_kg_s": 30
+    }
+  ]
+}
