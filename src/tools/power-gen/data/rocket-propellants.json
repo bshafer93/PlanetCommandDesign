@@ -1,0 +1,235 @@
+{
+  "title": "Rocket Propellant Systems",
+  "description": "Chemical rocket propellant combinations: primary orbital fuels, green alternatives, high-density mixtures, metal additives, peroxide systems, ammonia/nitrate systems, and exotic super-energetics. Includes performance metrics, storability, reuse potential, and development status.",
+  "categories": [
+    {
+      "id": "green-hypergols",
+      "name": "Green Hypergolic Propellants",
+      "description": "Hypergolic fuels ignite spontaneously with oxidizer, ideal for restartable engines and spacecraft maneuvering. Traditional hypergols (UDMH + N2O4) are toxic; these newer green alternatives reduce hazard and cost.",
+      "primaryUse": ["attitude control", "orbital insertion", "lander propulsion", "deep-space probes"],
+      "propellants": [
+        {
+          "name": "LMP-103S + NOFBX/MON",
+          "fuel": "LMP-103S",
+          "oxidizer": "NOFBX / MON",
+          "benefits": ["Higher performance than hydrazine", "Non-toxic"],
+          "challenges": ["Still not as high Isp as LH2"],
+          "status": "In use on some satellites"
+        },
+        {
+          "name": "AF-315E + MON",
+          "fuel": "AF-315E",
+          "oxidizer": "MON",
+          "benefits": ["Non-toxic", "Storable"],
+          "challenges": ["Moderate performance"],
+          "status": "Flight-demonstrated"
+        },
+        {
+          "name": "HAN-based blends + MON",
+          "fuel": "HAN-based blend",
+          "oxidizer": "MON",
+          "benefits": ["Green", "High density"],
+          "challenges": ["Needs system requalification"],
+          "status": "Under active development"
+        }
+      ]
+    },
+    {
+      "id": "high-density-energetic",
+      "name": "High-Density Energetic Mixtures",
+      "description": "Fuel blends that trade a little Isp for much higher density and simpler tanks. Advantageous for compact designs or high thrust applications.",
+      "primaryUse": ["compact vehicle designs", "high-thrust stages"],
+      "propellants": [
+        {
+          "name": "Gelled propellants (RP-1 + gellant)",
+          "concept": "Reduces slosh, improves handling",
+          "status": "Research / small demonstrations"
+        },
+        {
+          "name": "Energetic ionic liquids (EILs)",
+          "concept": "Hypergolic, high density",
+          "status": "Lab-scale testing"
+        },
+        {
+          "name": "High-density hydrocarbon blends",
+          "concept": "Slightly better than RP-1 density",
+          "status": "Limited research"
+        }
+      ]
+    },
+    {
+      "id": "metal-additives",
+      "name": "Metal Additives / Powdered Fuels",
+      "description": "Adding reactive metals to propellant increases energy density (MJ/kg), potentially boosting effective thrust and performance. Mostly research curiosities — promising for boosters or special stages.",
+      "primaryUse": ["boosters", "special stages"],
+      "additives": [
+        {
+          "name": "Aluminum powder",
+          "purpose": "Increases energy content",
+          "issues": ["Slag formation", "Erosion"]
+        },
+        {
+          "name": "Magnesium / Beryllium",
+          "purpose": "Even higher energy",
+          "issues": ["Toxicity", "Combustion complexity"]
+        },
+        {
+          "name": "Nano-energetics",
+          "purpose": "Ultra-fast burn",
+          "issues": ["Hard to control safely"]
+        }
+      ]
+    },
+    {
+      "id": "peroxide-based",
+      "name": "Peroxide-Based Systems",
+      "description": "High-concentration hydrogen peroxide used as an oxidizer or monopropellant. Storable at room temperature, non-toxic compared to N2O4. Used in rockets like the British Black Arrow and many small launchers.",
+      "primaryUse": ["small launchers", "UAVs", "monopropellant thrusters"],
+      "propellants": [
+        {
+          "name": "90%+ H2O2",
+          "notes": "Decomposes to hot O2 + steam",
+          "uses": ["Small launchers", "UAVs"]
+        },
+        {
+          "name": "Looser H2O2 blends",
+          "notes": "Easier to handle",
+          "uses": ["Not for main orbital propellant"]
+        }
+      ]
+    },
+    {
+      "id": "ammonia-nitrate",
+      "name": "Ammonia / Nitrate Systems",
+      "description": "Ammonia and related compounds are easy to store and handle. Not competitive for heavy orbital work, but potential for flight control thrusters, small launcher stages, or green hardware platforms.",
+      "primaryUse": ["flight control thrusters", "small launcher stages", "green hardware platforms"],
+      "propellants": [
+        {
+          "name": "Ammonia / oxidizer",
+          "appeal": "Simple, storable, cheap",
+          "limitation": "Low Isp"
+        },
+        {
+          "name": "Nitrous oxide / hydrocarbon",
+          "appeal": "Self-pressurizing",
+          "limitation": "Lower thrust / efficiency"
+        }
+      ]
+    },
+    {
+      "id": "exotic-super-energetics",
+      "name": "Exotic Super-Energetics (Experimental)",
+      "description": "Early research or speculative propellant concepts. Most are far from flight readiness due to stability, handling, combustion control, or safety issues.",
+      "primaryUse": ["research", "future high-performance stages"],
+      "concepts": [
+        "Metalized boron fuels — ultra high energy",
+        "Oxygen-rich combustion catalysts",
+        "Hypergolic ionic liquids with enhanced performance",
+        "Nano-structured propellants with tailored burn properties"
+      ]
+    }
+  ],
+  "comparison": {
+    "description": "Performance comparison across all major propellant systems",
+    "metrics": {
+      "isp": { "unit": "s", "label": "Specific Impulse" },
+      "density": { "unit": "qualitative", "label": "Propellant Density" },
+      "storability": { "unit": "qualitative", "label": "Ease of Storage" },
+      "reuse": { "unit": "qualitative", "label": "Reusability Potential" }
+    },
+    "systems": [
+      {
+        "name": "RP-1 / LOX",
+        "category": "primary-orbital",
+        "ispMin": 330,
+        "ispMax": 350,
+        "density": "high",
+        "storability": "easy",
+        "reuse": "moderate",
+        "notes": "Workhorse kerosene fuel"
+      },
+      {
+        "name": "Methalox / LOX",
+        "category": "primary-orbital",
+        "ispMin": 360,
+        "ispMax": 380,
+        "density": "medium",
+        "storability": "moderate",
+        "reuse": "good",
+        "notes": "New reusable favorite, best all-around replacement for kerosene"
+      },
+      {
+        "name": "Hydrolox / LOX",
+        "category": "primary-orbital",
+        "ispMin": 430,
+        "ispMax": 460,
+        "density": "low",
+        "storability": "hard",
+        "reuse": "moderate",
+        "notes": "Best Isp, hard cryo"
+      },
+      {
+        "name": "Green Hypergols (AF-315E etc.)",
+        "category": "green-hypergols",
+        "ispMin": 310,
+        "ispMax": 340,
+        "density": "high",
+        "storability": "easy",
+        "reuse": "good",
+        "notes": "Restartable stages, satellite propulsion, spacecraft maneuvering"
+      },
+      {
+        "name": "High-density Energetic Liquids",
+        "category": "high-density-energetic",
+        "ispMin": 320,
+        "ispMax": 350,
+        "density": "high",
+        "storability": "easy",
+        "reuse": "unknown",
+        "notes": "Research phase"
+      },
+      {
+        "name": "Metalized Fuels",
+        "category": "metal-additives",
+        "ispMin": null,
+        "ispMax": null,
+        "density": "very high",
+        "storability": "unknown",
+        "reuse": "unknown",
+        "notes": "Early research, varies widely"
+      },
+      {
+        "name": "Peroxide-based (90%+ H2O2)",
+        "category": "peroxide-based",
+        "ispMin": 250,
+        "ispMax": 300,
+        "density": "medium",
+        "storability": "easy",
+        "reuse": "low",
+        "notes": "Niche / small stages"
+      },
+      {
+        "name": "N2O-hydrocarbon",
+        "category": "ammonia-nitrate",
+        "ispMin": 300,
+        "ispMax": 330,
+        "density": "medium",
+        "storability": "easy",
+        "reuse": "moderate",
+        "notes": "Small launcher interest"
+      }
+    ]
+  },
+  "selectionCriteria": {
+    "description": "Key criteria a propellant must meet to replace methalox or hydrolox on a primary orbital booster",
+    "criteria": [
+      "High specific impulse (Isp)",
+      "Dense (compact tanks)",
+      "Non-toxic or reasonably handled",
+      "Combustion-stable",
+      "Reusable-friendly (low coking)",
+      "Low tank/structure complexity"
+    ],
+    "verdict": "None of the alternative propellants hit all criteria without tradeoffs. Methalox is currently the best all-around replacement for kerosene boosters, balancing performance, density, and reuse."
+  }
+}
