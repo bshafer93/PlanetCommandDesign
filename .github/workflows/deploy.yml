@@ -1,4 +1,4 @@
-name: Deploy to DigitalOcean
+name: Deploy to Komodo
 
 on:
   push:
@@ -8,57 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-      - run: npm run build
-
-      - name: Configure SSH
+      - name: Trigger Komodo stack deploy
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Deploy frontend via rsync
-        run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            dist/ root@${{ secrets.DEPLOY_HOST }}:/var/www/planet-command/
-
-      - name: Deploy server via rsync
-        run: |
-          rsync -avz --delete \
-            --exclude='data/' \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            server/ root@${{ secrets.DEPLOY_HOST }}:/opt/planet-command-server/server/
-
-      - name: Install server dependencies and restart
-        run: |
-          ssh -i ~/.ssh/deploy_key root@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            cd /opt/planet-command-server
-            cat > package.json << 'PKG'
-          {
-            "name": "planet-command-server",
-            "type": "module",
-            "dependencies": {
-              "cors": "^2.8.5",
-              "express": "^4.21.0"
-            },
-            "devDependencies": {
-              "tsx": "^4.19.0"
-            }
-          }
-          PKG
-            npm install --production=false
-            # Restart via PM2 (install if needed)
-            which pm2 || npm install -g pm2
-            pm2 delete planet-command-api 2>/dev/null || true
-            pm2 start npx --name planet-command-api -- tsx server/index.ts
-            pm2 save
-          EOF
+          curl -fsSL -X POST \
+            "${{ secrets.KOMODO_WEBHOOK_URL }}"
