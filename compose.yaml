@@ -3,12 +3,12 @@ services:
     build:
       context: .
       target: frontend
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+    ports:
+      - "192.168.100.52:443:443"
+      - "192.168.100.52:80:80"
+    volumes:
+      - /mnt/truenas/planet-command/certs:/certs:ro
+      - caddy-data:/data
     depends_on:
       backend:
         condition: service_healthy
@@ -55,40 +55,6 @@ services:
       start_period: 10s
     networks:
       - backend
-    restart: unless-stopped
-
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "192.168.100.52:443:443"
-      - "192.168.100.52:80:80"
-    volumes:
-      - /mnt/truenas/planet-command/certs:/certs:ro
-      - caddy-data:/data
-    entrypoint: /bin/sh
-    command:
-      - -c
-      - |
-        cat > /etc/caddy/Caddyfile <<'CADDYFILE'
-        {
-          auto_https disable_redirects
-        }
-
-        https://planetcommand.home {
-          tls /certs/cert.pem /certs/key.pem
-          reverse_proxy frontend:80
-        }
-
-        http://planetcommand.home {
-          redir https://planetcommand.home{uri} permanent
-        }
-        CADDYFILE
-        caddy run --config /etc/caddy/Caddyfile
-    depends_on:
-      frontend:
-        condition: service_healthy
-    networks:
-      - frontend
     restart: unless-stopped
 
 volumes:

@@ -9,13 +9,13 @@ RUN npm ci
 COPY . .
 RUN npx vite build
 
-# ── Stage 2: Frontend target (nginx serves static files) ───────
-FROM nginx:alpine AS frontend
+# ── Stage 2: Frontend target (Caddy serves static files + TLS + API proxy)
+FROM caddy:2-alpine AS frontend
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile
 
-EXPOSE 80
+EXPOSE 80 443
 
 # ── Stage 3: Backend target (Express API only) ─────────────────
 FROM node:20-alpine AS backend

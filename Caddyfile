@@ -1,0 +1,21 @@
+{
+	auto_https disable_redirects
+}
+
+https://planetcommand.home {
+	tls /certs/cert.pem /certs/key.pem
+
+	handle /api/* {
+		reverse_proxy backend:3001
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+http://planetcommand.home {
+	redir https://planetcommand.home{uri} permanent
+}
