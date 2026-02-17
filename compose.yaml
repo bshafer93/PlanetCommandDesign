@@ -3,7 +3,6 @@ services:
     build:
       context: .
       target: frontend
-    image: dockerreg.house/planet-command-design-frontend:latest
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
       interval: 10s
@@ -21,7 +20,6 @@ services:
     build:
       context: .
       target: backend
-    image: dockerreg.house/planet-command-design-backend:latest
     volumes:
       - app-data:/app/server/data
     env_file:
