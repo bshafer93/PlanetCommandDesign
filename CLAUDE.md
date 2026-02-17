@@ -106,8 +106,11 @@ Defined in `src/styles/global.css` on `:root`:
 
 Express server in `server/` on port 3001. Entry: `server/index.ts`, routes in `server/routes/`. JSON file storage in `server/data/` (gitignored). Has its own `tsconfig.json` targeting ES2022/Node.
 
-Single endpoint:
+Endpoints:
+- `GET /api/health` — returns `{ status: "ok" }`, used by Docker health checks
 - `POST /api/save` — accepts `{ filename: string, data: any }`, sanitizes filename (alphanumeric/dash/underscore only), writes JSON to `server/data/`.
+- `GET /api/orbit/planets` — list available planet names for porkchop plots
+- `POST /api/orbit/porkchop` — compute porkchop plot grid (Lambert solver, JPL Horizons ephemeris)
 
 ### Data File Conventions
 
@@ -116,24 +119,53 @@ Tool-specific reference data lives in `src/tools/<name>/data/*.json`. These are 
 - Arrays of objects with numeric properties for chart data
 - Named keys for lookup tables (e.g., materials, technologies)
 
-### Private Docker Registry
+### Docker Compose (Full Stack)
 
-A private Docker registry is available on the local network for hosting built images:
+The app runs as a three-service Docker Compose stack:
+
+| Service | Image | Role |
+|---------|-------|------|
+| `frontend` | `dockerreg.house/planet-command-design-frontend` | Nginx serving built Svelte SPA, proxies `/api/` to backend |
+| `backend` | `dockerreg.house/planet-command-design-backend` | Express API (port 3001), connects to Postgres via `DATABASE_URL` |
+| `db` | `postgres:latest` | PostgreSQL database |
+
+**Multi-stage Dockerfile** (`Dockerfile`):
+- Stage `build`: Node 20 Alpine, runs `vite build`
+- Stage `frontend`: Nginx Alpine, copies built assets + `nginx.conf`
+- Stage `backend`: Node 20 Alpine, copies `server/` source, runs via `tsx`
+
+**Networking** — Two isolated Docker networks:
+- `frontend` network: frontend + backend (nginx proxies to Express)
+- `backend` network: backend + db (Express connects to Postgres)
+- Frontend container cannot directly reach the database
+
+**Health checks & startup order:**
+- `db`: `pg_isready` check, backend waits for `service_healthy`
+- `backend`: `GET /api/health` check, frontend waits for `service_healthy`
+
+**Volumes:**
+- `pgdata` — PostgreSQL data, persists across container rebuilds (`docker compose down` preserves it, `docker compose down -v` removes it)
+- `app-data` — JSON file storage for `/api/save`
+
+**Environment** (`.env` file, gitignored):
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` — used by Postgres container
+- `DATABASE_URL` — connection string for backend (`postgresql://user:pass@db:5432/dbname`)
+
+**Build and push:**
+```bash
+docker compose build
+docker compose push
+```
+
+### Private Docker Registry
 
 | Setting | Value |
 |---------|-------|
 | Registry URL | `dockerreg.house` (192.168.100.10, VLAN 100) |
 | Protocol | HTTPS (mkcert TLS) |
 | Auth | None (open on local network) |
-| Image name | `dockerreg.house/planet-command-design` |
-
-**Build and push:**
-```bash
-docker build -t dockerreg.house/planet-command-design:latest .
-docker push dockerreg.house/planet-command-design:latest
-```
-
-The image is consumed by TrueNAS Scale (192.168.1.94) which runs the app as a custom Docker compose app with a Caddy TLS sidecar on a macvlan network at 192.168.1.72 (`planetcommand.home`).
+| Frontend image | `dockerreg.house/planet-command-design-frontend` |
+| Backend image | `dockerreg.house/planet-command-design-backend` |
 
 ### Deployment
 
