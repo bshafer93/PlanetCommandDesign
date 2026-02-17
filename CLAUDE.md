@@ -143,7 +143,8 @@ The app runs as a three-service Docker Compose stack, managed by **Komodo** on t
 
 **Health checks & startup order:**
 - `db`: `pg_isready` check, backend waits for `service_healthy`
-- `backend`: `GET /api/health` check, frontend waits for `service_healthy`
+- `backend`: `wget http://127.0.0.1:3001/api/health` check, frontend waits for `service_healthy`
+- **Important:** Use `127.0.0.1`, NOT `localhost` — Alpine wget resolves `localhost` to IPv6 `::1` but Node listens on IPv4 `0.0.0.0`
 
 **Volumes:**
 - `pgdata` — PostgreSQL data at `/var/lib/postgresql` (pg 18+ compatible mount point)
@@ -155,9 +156,29 @@ The app runs as a three-service Docker Compose stack, managed by **Komodo** on t
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` — used by Postgres container
 - `DATABASE_URL` — connection string for backend (`postgresql://user:pass@db:5432/dbname`)
 
-**Ports** — Frontend (Caddy) binds to `192.168.100.52:443` and `192.168.100.52:80` (VLAN 100 IP)
+**Ports:**
+- Frontend (Caddy): `192.168.100.52:443` and `192.168.100.52:80` (HTTPS + HTTP redirect)
+- Database (Postgres): `192.168.100.52:5432` (external access for DBeaver/pgAdmin)
 
 **Build:** Images are built locally by Komodo (no registry pull needed). `docker compose build` for local builds.
+
+### Database
+
+**PostgreSQL** (postgres:latest / v18) running as `db` service in the compose stack.
+
+| Field | Value |
+|-------|-------|
+| Host | `192.168.100.52` (external) / `db` (internal Docker network) |
+| Port | `5432` |
+| Database | `PlanetCommandDesignDB` |
+| Username | `planetcommand` |
+| Password | `planetcommand_db_pass` |
+| Connection string | `postgresql://planetcommand:planetcommand_db_pass@db:5432/PlanetCommandDesignDB` |
+
+- Credentials are in `.env` (gitignored): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `DATABASE_URL`
+- Backend connects via `DATABASE_URL` environment variable
+- Data persisted in `pgdata` Docker volume at `/var/lib/postgresql`
+- External port bound to VLAN 100 IP (`192.168.100.52:5432`) for DBeaver/pgAdmin access
 
 ### Deployment
 
@@ -166,6 +187,10 @@ The app runs as a three-service Docker Compose stack, managed by **Komodo** on t
 - Builds images locally, runs `docker compose up`
 - Komodo URL: `https://komodo.docker.home`
 - Stack accessible at `https://planetcommand.home` (DNS → 192.168.100.52)
+- Stack ID: `6994a98204c61f7c00e17bde`
+- API auth: `POST https://komodo.docker.home/auth` with `{"type":"LoginLocalUser","params":{"username":"admin","password":"bKX6u6jBkHtnHtEFw9oySw"}}` → JWT
+- API calls: `POST /read`, `/write`, `/execute` with `authorization: <jwt>` header (no `Bearer` prefix)
+- Deploy: `POST /execute` with `{"type":"DeployStack","params":{"stack":"6994a98204c61f7c00e17bde"}}`
 
 **GitHub Actions (legacy/CI)** — `.github/workflows/deploy.yml` auto-deploys on push to `main`:
 - Builds with Node 20 (`npm ci && npm run build`)
