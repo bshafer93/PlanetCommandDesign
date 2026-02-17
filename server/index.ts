@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { saveRouter } from './routes/save.js';
@@ -17,17 +17,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 app.use(cors());
 app.use(express.json());
 
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.use('/api', saveRouter);
 app.use('/api', orbitRouter);
-
-// In production, serve the built Svelte frontend
-const distDir = join(__dirname, '..', 'dist');
-if (existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get('*', (_req, res) => {
-    res.sendFile(join(distDir, 'index.html'));
-  });
-}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on http://0.0.0.0:${PORT}`);
