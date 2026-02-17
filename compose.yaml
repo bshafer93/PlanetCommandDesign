@@ -22,6 +22,7 @@ services:
       target: backend
     volumes:
       - app-data:/app/server/data
+      - /mnt/truenas/planet-command/nasa_data:/app/nasa_data:ro
     env_file:
       - .env
     environment:
