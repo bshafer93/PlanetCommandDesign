@@ -121,21 +121,23 @@ Tool-specific reference data lives in `src/tools/<name>/data/*.json`. These are 
 
 ### Docker Compose (Full Stack)
 
-The app runs as a three-service Docker Compose stack:
+The app runs as a three-service Docker Compose stack, managed by **Komodo** on the Docker VM:
 
-| Service | Image | Role |
-|---------|-------|------|
-| `frontend` | `dockerreg.house/planet-command-design-frontend` | Nginx serving built Svelte SPA, proxies `/api/` to backend |
-| `backend` | `dockerreg.house/planet-command-design-backend` | Express API (port 3001), connects to Postgres via `DATABASE_URL` |
+| Service | Base Image | Role |
+|---------|------------|------|
+| `frontend` | `caddy:2-alpine` | Caddy serving built Svelte SPA, TLS termination, proxies `/api/*` to backend, HTTP→HTTPS redirect |
+| `backend` | `node:20-alpine` | Express API (port 3001), connects to Postgres via `DATABASE_URL` |
 | `db` | `postgres:latest` | PostgreSQL database |
 
 **Multi-stage Dockerfile** (`Dockerfile`):
 - Stage `build`: Node 20 Alpine, runs `vite build`
-- Stage `frontend`: Nginx Alpine, copies built assets + `nginx.conf`
+- Stage `frontend`: Caddy 2 Alpine, copies built assets to `/srv` + `Caddyfile`
 - Stage `backend`: Node 20 Alpine, copies `server/` source, runs via `tsx`
 
+**Caddyfile** — Serves static files from `/srv`, proxies `/api/*` to `backend:3001`, TLS with mkcert certs mounted at `/certs`, HTTP→HTTPS redirect. Uses `auto_https disable_redirects` and `try_files {path} /index.html` for SPA routing.
+
 **Networking** — Two isolated Docker networks:
-- `frontend` network: frontend + backend (nginx proxies to Express)
+- `frontend` network: frontend (Caddy) + backend (Caddy proxies `/api/*` to Express)
 - `backend` network: backend + db (Express connects to Postgres)
 - Frontend container cannot directly reach the database
 
@@ -144,36 +146,30 @@ The app runs as a three-service Docker Compose stack:
 - `backend`: `GET /api/health` check, frontend waits for `service_healthy`
 
 **Volumes:**
-- `pgdata` — PostgreSQL data, persists across container rebuilds (`docker compose down` preserves it, `docker compose down -v` removes it)
+- `pgdata` — PostgreSQL data at `/var/lib/postgresql` (pg 18+ compatible mount point)
 - `app-data` — JSON file storage for `/api/save`
+- `caddy-data` — Caddy internal state
+- `/mnt/truenas/planet-command/certs` — mkcert TLS certs (read-only bind mount)
 
 **Environment** (`.env` file, gitignored):
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` — used by Postgres container
 - `DATABASE_URL` — connection string for backend (`postgresql://user:pass@db:5432/dbname`)
 
-**Build and push:**
-```bash
-docker compose build
-docker compose push
-```
+**Ports** — Frontend (Caddy) binds to `192.168.100.52:443` and `192.168.100.52:80` (VLAN 100 IP)
 
-### Private Docker Registry
-
-| Setting | Value |
-|---------|-------|
-| Registry URL | `dockerreg.house` (192.168.100.10, VLAN 100) |
-| Protocol | HTTPS (mkcert TLS) |
-| Auth | None (open on local network) |
-| Frontend image | `dockerreg.house/planet-command-design-frontend` |
-| Backend image | `dockerreg.house/planet-command-design-backend` |
+**Build:** Images are built locally by Komodo (no registry pull needed). `docker compose build` for local builds.
 
 ### Deployment
 
-GitHub Actions (`.github/workflows/deploy.yml`) auto-deploys on push to `main`:
+**Komodo (primary)** — Manages the Docker Compose stack on the Docker VM (192.168.1.50):
+- Pulls from `bshafer93/PlanetCommandDesign` `main` branch
+- Builds images locally, runs `docker compose up`
+- Komodo URL: `https://komodo.docker.home`
+- Stack accessible at `https://planetcommand.home` (DNS → 192.168.100.52)
+
+**GitHub Actions (legacy/CI)** — `.github/workflows/deploy.yml` auto-deploys on push to `main`:
 - Builds with Node 20 (`npm ci && npm run build`)
-- Frontend rsynced to `/var/www/planet-command/` on the DigitalOcean droplet
-- Server rsynced to `/opt/planet-command-server/`, managed by PM2 (`planet-command-api`)
-- Nginx serves frontend with SPA fallback, reverse-proxies `/api/` to localhost:3001
+- Rsyncs to DigitalOcean droplet (separate from Docker VM deployment)
 - Secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`
 
 ### Key Dependencies
