@@ -25,9 +25,9 @@ async function getCachedEphemeris(
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
     return cached.data;
   }
-  const data = await getEphemeris(bodyId, start, end, steps);
-  ephemerisCache.set(key, { data, ts: Date.now() });
-  return data;
+  const dataa = await getEphemeris(bodyId, start, end, steps);
+  ephemerisCache.set(key, { data: dataa, ts: Date.now() });
+  return dataa;
 }
 
 // ── Planet list ──────────────────────────────────────────────
