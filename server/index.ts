@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { saveRouter } from './routes/save.js';
 import { orbitRouter } from './routes/orbit.js';
+import { closePool } from './lib/dal.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = join(__dirname, 'data');
@@ -24,6 +25,16 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', saveRouter);
 app.use('/api', orbitRouter);
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on http://0.0.0.0:${PORT}`);
 });
+
+function shutdown() {
+  console.log('Shutting down...');
+  server.close(() => {
+    closePool().then(() => process.exit(0));
+  });
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
