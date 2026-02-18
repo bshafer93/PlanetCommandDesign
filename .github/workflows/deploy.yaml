@@ -1,0 +1,14 @@
+name: Deploy to Komodo
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Trigger Komodo stack deploy
+        run: |
+          curl -fsSL -X POST \
+            "${{ secrets.KOMODO_WEBHOOK_URL }}"
